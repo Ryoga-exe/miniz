@@ -35,12 +35,13 @@ pub const SExpr = union(enum) {
 };
 
 test "toString()" {
+    const alloc = std.testing.allocator;
     const e = SExpr{ .list = &[_]SExpr{ SExpr{ .atom = "+" }, SExpr{ .atom = "1" }, SExpr{ .list = &[_]SExpr{
         SExpr{ .atom = "+" },
         SExpr{ .atom = "2" },
         SExpr{ .atom = "3" },
     } } } };
-    const str = try e.toString(std.testing.allocator);
-    defer std.testing.allocator.free(str);
+    const str = try e.toString(alloc);
+    defer alloc.free(str);
     try std.testing.expectEqualSlices(u8, "(+ 1 (+ 2 3))", str);
 }
