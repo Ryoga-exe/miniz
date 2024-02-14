@@ -5,6 +5,10 @@ pub const SExpr = union(enum) {
 
     atom: []const u8,
     list: []const SExpr,
+    // Todo
+    // atom_integer
+    // atom_float
+    // atom_string
 
     pub fn toString(self: Self, allocator: std.mem.Allocator) ![]u8 {
         var buffer = std.ArrayList(u8).init(allocator);
