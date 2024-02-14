@@ -1,10 +1,12 @@
 const std = @import("std");
 
 pub const SExpr = union(enum) {
+    const Self = @This();
+
     atom: []const u8,
     list: []const SExpr,
 
-    pub fn toString(self: @This(), allocator: std.mem.Allocator) ![]u8 {
+    pub fn toString(self: Self, allocator: std.mem.Allocator) ![]u8 {
         var buffer = std.ArrayList(u8).init(allocator);
         defer buffer.deinit();
         const writer = buffer.writer();
