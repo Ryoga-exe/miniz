@@ -1,24 +1,23 @@
 const std = @import("std");
 
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    const alc = std.heap.page_allocator;
+    const args = try std.process.argsAlloc(alc);
+    defer std.process.argsFree(alc, args);
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
     const stdout_file = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_file);
     const stdout = bw.writer();
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+    if (args.len < 2) {
+        try stdout.print("repl mode...\n", .{});
+        try bw.flush();
+        std.os.exit(0);
+    }
 
-    try bw.flush(); // don't forget to flush!
-}
+    try stdout.print("input file: {s}\n", .{args[1]});
+    try bw.flush();
 
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
+    // if .json
+    // if .mnz or .miniz
 }
