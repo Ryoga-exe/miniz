@@ -61,7 +61,7 @@ pub const Lexer = struct {
             ')' => tok = Token{ .type = TokenType.rparen, .literal = ")" },
             '{' => tok = Token{ .type = TokenType.lbrace, .literal = "{" },
             '}' => tok = Token{ .type = TokenType.rbrace, .literal = "}" },
-            0 => {},
+            0 => tok = Token{ .type = TokenType.eof, .literal = "" },
             else => {
                 if (isLetter(self.ch)) {
                     tok.literal = self.readIdentifier();
@@ -151,6 +151,7 @@ test "Lexer" {
         Token{ .type = TokenType.integer, .literal = "1" },
         Token{ .type = TokenType.semicolon, .literal = ";" },
         Token{ .type = TokenType.rbrace, .literal = "}" },
+        Token{ .type = TokenType.eof, .literal = "" },
     };
     var lexer = Lexer.init(input);
 
