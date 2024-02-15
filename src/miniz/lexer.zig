@@ -1,7 +1,6 @@
 const std = @import("std");
 const Token = @import("./token.zig").Token;
 const TokenType = @import("./token.zig").TokenType;
-const lookupIdentifier = @import("./token.zig").lookupIdentifier;
 
 fn isLetter(char: u8) bool {
     return std.ascii.isAlphabetic(char) or char == '_';
@@ -30,45 +29,45 @@ pub const Lexer = struct {
         return l;
     }
     pub fn nextToken(self: *Self) Token {
-        var tok = Token{ .type = TokenType.illegal, .literal = "" };
+        var tok = Token.init(.illegal, "");
 
         self.skipWhitespace();
 
         switch (self.ch) {
             '=' => {
                 if (self.peekChar() == '=') {
-                    tok = Token{ .type = TokenType.eq, .literal = "==" };
+                    tok = Token.init(.eq, "==");
                 } else {
-                    tok = Token{ .type = TokenType.assign, .literal = "=" };
+                    tok = Token.init(.assign, "=");
                 }
             },
             '!' => {
                 if (self.peekChar() == '=') {
-                    tok = Token{ .type = TokenType.not_eq, .literal = "!=" };
+                    tok = Token.init(.not_eq, "!=");
                 } else {
-                    tok = Token{ .type = TokenType.bang, .literal = "!" };
+                    tok = Token.init(.bang, "!");
                 }
             },
-            '+' => tok = Token{ .type = TokenType.plus, .literal = "+" },
-            '-' => tok = Token{ .type = TokenType.minus, .literal = "-" },
-            '*' => tok = Token{ .type = TokenType.asterisk, .literal = "*" },
-            '/' => tok = Token{ .type = TokenType.slash, .literal = "/" },
-            '<' => tok = Token{ .type = TokenType.lt, .literal = "<" },
-            '>' => tok = Token{ .type = TokenType.gt, .literal = ">" },
-            ',' => tok = Token{ .type = TokenType.comma, .literal = "," },
-            ';' => tok = Token{ .type = TokenType.semicolon, .literal = ";" },
-            '(' => tok = Token{ .type = TokenType.lparen, .literal = "(" },
-            ')' => tok = Token{ .type = TokenType.rparen, .literal = ")" },
-            '{' => tok = Token{ .type = TokenType.lbrace, .literal = "{" },
-            '}' => tok = Token{ .type = TokenType.rbrace, .literal = "}" },
-            0 => tok = Token{ .type = TokenType.eof, .literal = "" },
+            '+' => tok = Token.init(.plus, "+"),
+            '-' => tok = Token.init(.minus, "-"),
+            '*' => tok = Token.init(.asterisk, "*"),
+            '/' => tok = Token.init(.slash, "/"),
+            '<' => tok = Token.init(.lt, "<"),
+            '>' => tok = Token.init(.gt, ">"),
+            ',' => tok = Token.init(.comma, ","),
+            ';' => tok = Token.init(.semicolon, ";"),
+            '(' => tok = Token.init(.lparen, "("),
+            ')' => tok = Token.init(.rparen, ")"),
+            '{' => tok = Token.init(.lbrace, "{"),
+            '}' => tok = Token.init(.rbrace, "}"),
+            0 => tok = Token.init(.eof, ""),
             else => {
                 if (isLetter(self.ch)) {
                     tok.literal = self.readIdentifier();
-                    tok.type = lookupIdentifier(tok.literal);
+                    tok.type = Token.lookupIdentifier(tok.literal);
                     return tok;
                 } else if (isDigit(self.ch)) {
-                    tok.type = TokenType.integer;
+                    tok.type = .integer;
                     tok.literal = self.readNumber();
                     return tok;
                 }
@@ -125,33 +124,33 @@ test "Lexer" {
         \\}
     ;
     const tests = [_]Token{
-        Token{ .type = TokenType.identifier, .literal = "five" },
-        Token{ .type = TokenType.assign, .literal = "=" },
-        Token{ .type = TokenType.integer, .literal = "5" },
-        Token{ .type = TokenType.semicolon, .literal = ";" },
-        Token{ .type = TokenType.identifier, .literal = "ten" },
-        Token{ .type = TokenType.assign, .literal = "=" },
-        Token{ .type = TokenType.integer, .literal = "10" },
-        Token{ .type = TokenType.semicolon, .literal = ";" },
-        Token{ .type = TokenType.identifier, .literal = "i" },
-        Token{ .type = TokenType.assign, .literal = "=" },
-        Token{ .type = TokenType.integer, .literal = "0" },
-        Token{ .type = TokenType.semicolon, .literal = ";" },
-        Token{ .type = TokenType.keyword_while, .literal = "while" },
-        Token{ .type = TokenType.lparen, .literal = "(" },
-        Token{ .type = TokenType.identifier, .literal = "i" },
-        Token{ .type = TokenType.lt, .literal = "<" },
-        Token{ .type = TokenType.integer, .literal = "0" },
-        Token{ .type = TokenType.rparen, .literal = ")" },
-        Token{ .type = TokenType.lbrace, .literal = "{" },
-        Token{ .type = TokenType.identifier, .literal = "i" },
-        Token{ .type = TokenType.assign, .literal = "=" },
-        Token{ .type = TokenType.identifier, .literal = "i" },
-        Token{ .type = TokenType.plus, .literal = "+" },
-        Token{ .type = TokenType.integer, .literal = "1" },
-        Token{ .type = TokenType.semicolon, .literal = ";" },
-        Token{ .type = TokenType.rbrace, .literal = "}" },
-        Token{ .type = TokenType.eof, .literal = "" },
+        Token.init(.identifier, "five"),
+        Token.init(.assign, "="),
+        Token.init(.integer, "5"),
+        Token.init(.semicolon, ";"),
+        Token.init(.identifier, "ten"),
+        Token.init(.assign, "="),
+        Token.init(.integer, "10"),
+        Token.init(.semicolon, ";"),
+        Token.init(.identifier, "i"),
+        Token.init(.assign, "="),
+        Token.init(.integer, "0"),
+        Token.init(.semicolon, ";"),
+        Token.init(.keyword_while, "while"),
+        Token.init(.lparen, "("),
+        Token.init(.identifier, "i"),
+        Token.init(.lt, "<"),
+        Token.init(.integer, "0"),
+        Token.init(.rparen, ")"),
+        Token.init(.lbrace, "{"),
+        Token.init(.identifier, "i"),
+        Token.init(.assign, "="),
+        Token.init(.identifier, "i"),
+        Token.init(.plus, "+"),
+        Token.init(.integer, "1"),
+        Token.init(.semicolon, ";"),
+        Token.init(.rbrace, "}"),
+        Token.init(.eof, ""),
     };
     var lexer = Lexer.init(input);
 

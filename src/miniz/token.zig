@@ -1,4 +1,4 @@
-const eql = @import("std").mem.eql;
+const std = @import("std");
 
 pub const TokenType = enum {
     illegal,
@@ -37,27 +37,38 @@ pub const TokenType = enum {
 };
 
 pub const Token = struct {
-    type: TokenType,
-    literal: []const u8,
+    const Self = @This();
+    type: TokenType = .illegal,
+    literal: []const u8 = "",
+    pub fn init(token_type: TokenType, literal: []const u8) Self {
+        return Self{
+            .type = token_type,
+            .literal = literal,
+        };
+    }
+    pub fn lookupIdentifier(identifier: []const u8) TokenType {
+        const map = std.ComptimeStringMap(TokenType, .{
+            .{ "function", .keyword_function },
+            .{ "true", .keyword_function },
+            .{ "false", .keyword_false },
+            .{ "if", .keyword_if },
+            .{ "else", .keyword_else },
+            .{ "for", .keyword_for },
+            .{ "while", .keyword_while },
+            .{ "return", .keyword_return },
+        });
+        if (map.get(identifier)) |key| {
+            return key;
+        }
+        return .identifier;
+    }
 };
 
-pub fn lookupIdentifier(literal: []const u8) TokenType {
-    if (eql(u8, literal, "function")) {
-        return TokenType.keyword_function;
-    } else if (eql(u8, literal, "true")) {
-        return TokenType.keyword_true;
-    } else if (eql(u8, literal, "false")) {
-        return TokenType.keyword_false;
-    } else if (eql(u8, literal, "if")) {
-        return TokenType.keyword_if;
-    } else if (eql(u8, literal, "else")) {
-        return TokenType.keyword_else;
-    } else if (eql(u8, literal, "for")) {
-        return TokenType.keyword_for;
-    } else if (eql(u8, literal, "while")) {
-        return TokenType.keyword_while;
-    } else if (eql(u8, literal, "return")) {
-        return TokenType.keyword_return;
-    }
-    return TokenType.identifier;
+test "lookupIdentifier" {
+    try std.testing.expect(.keyword_function == Token.lookupIdentifier("function"));
+    try std.testing.expect(.keyword_if == Token.lookupIdentifier("if"));
+    try std.testing.expect(.keyword_return == Token.lookupIdentifier("return"));
+    try std.testing.expect(.identifier == Token.lookupIdentifier("foo"));
+    try std.testing.expect(.identifier == Token.lookupIdentifier("bar"));
+    try std.testing.expect(.identifier == Token.lookupIdentifier("foobar"));
 }
