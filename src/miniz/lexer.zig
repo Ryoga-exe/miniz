@@ -1,6 +1,5 @@
 const std = @import("std");
 const Token = @import("./token.zig").Token;
-const TokenType = @import("./token.zig").TokenType;
 
 fn isLetter(char: u8) bool {
     return std.ascii.isAlphabetic(char) or char == '_';
