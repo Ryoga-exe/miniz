@@ -47,6 +47,7 @@ pub const Statement = union(enum) {
 
     expression_statement: *ExpressionStatement,
     return_statement: *ReturnStatement,
+    block_statement: *BlockStatement,
 
     pub fn init(allocator: Allocator) !*Self {
         return try allocator.create(Self);
@@ -65,10 +66,18 @@ pub const Statement = union(enum) {
         };
         return stmt;
     }
+    pub fn createBlockStatement(allocator: Allocator) !*Self {
+        const stmt = try allocator.create(Self);
+        stmt.* = Self{
+            .block_statement = try BlockStatement.init(allocator),
+        };
+        return stmt;
+    }
     pub fn deinit(self: *Self, allocator: Allocator) void {
         switch (self.*) {
             .expression_statement => |es| es.deinit(allocator),
             .return_statement => |rs| rs.deinit(allocator),
+            .block_statement => |bs| bs.deinit(allocator),
         }
         allocator.destroy(self);
     }
@@ -76,6 +85,7 @@ pub const Statement = union(enum) {
         switch (self) {
             .expression_statement => |es| try es.render(buffer),
             .return_statement => |rs| try rs.render(buffer),
+            .block_statement => |bs| try bs.render(buffer),
         }
     }
 };
@@ -136,7 +146,7 @@ const BlockStatement = struct {
     pub fn init(allocator: Allocator) !*Self {
         const stmt = try allocator.create(Self);
         stmt.* = Self{
-            .statement = std.ArrayList(*Statement).init(allocator),
+            .statements = std.ArrayList(*Statement).init(allocator),
         };
         return stmt;
     }

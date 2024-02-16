@@ -60,6 +60,13 @@ fn evalStatement(allocator: std.mem.Allocator, statement: *Statement, env: *Env)
     return try switch (statement.*) {
         .expression_statement => |es| return evalExpression(allocator, es.expression, env),
         .return_statement => |rs| return evalExpression(allocator, rs.expression, env),
+        .block_statement => |bs| {
+            var ret: i64 = 0;
+            for (bs.statements.items) |stmt| {
+                ret = try evalStatement(allocator, stmt, env);
+            }
+            return ret;
+        },
     };
 }
 
