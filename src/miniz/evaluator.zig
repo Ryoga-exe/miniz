@@ -66,6 +66,8 @@ pub fn eval(allocator: std.mem.Allocator, program: *Expression, env: *Env) !i64 
                 .rem => return @rem(try eval(allocator, bexpr.lhs, env), try eval(allocator, bexpr.rhs, env)),
                 .lt => return if (try eval(allocator, bexpr.lhs, env) < try eval(allocator, bexpr.rhs, env)) 1 else 0,
                 .gt => return if (try eval(allocator, bexpr.lhs, env) > try eval(allocator, bexpr.rhs, env)) 1 else 0,
+                .lt_eq => return if (try eval(allocator, bexpr.lhs, env) <= try eval(allocator, bexpr.rhs, env)) 1 else 0,
+                .gt_eq => return if (try eval(allocator, bexpr.lhs, env) >= try eval(allocator, bexpr.rhs, env)) 1 else 0,
                 .eq => return if (try eval(allocator, bexpr.lhs, env) == try eval(allocator, bexpr.rhs, env)) 1 else 0,
                 .not_eq => return if (try eval(allocator, bexpr.lhs, env) != try eval(allocator, bexpr.rhs, env)) 1 else 0,
                 .assign => {

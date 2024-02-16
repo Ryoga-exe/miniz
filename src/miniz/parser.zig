@@ -52,6 +52,8 @@ pub const Parser = struct {
                 .rem => leading = try self.parseInfixOnce(Operator.rem, leading),
                 .lt => leading = try self.parseInfixOnce(Operator.lt, leading),
                 .gt => leading = try self.parseInfixOnce(Operator.gt, leading),
+                .lt_eq => leading = try self.parseInfixOnce(Operator.lt_eq, leading),
+                .gt_eq => leading = try self.parseInfixOnce(Operator.gt_eq, leading),
                 .eq => leading = try self.parseInfixOnce(Operator.eq, leading),
                 .not_eq => leading = try self.parseInfixOnce(Operator.not_eq, leading),
                 .assign => {

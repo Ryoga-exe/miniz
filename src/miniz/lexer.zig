@@ -61,8 +61,22 @@ pub const Lexer = struct {
                     tok = Token.init(.mod, "%");
                 }
             },
-            '<' => tok = Token.init(.lt, "<"),
-            '>' => tok = Token.init(.gt, ">"),
+            '<' => {
+                if (self.peekChar() == '=') {
+                    self.readChar();
+                    tok = Token.init(.lt_eq, "<=");
+                } else {
+                    tok = Token.init(.lt, "<");
+                }
+            },
+            '>' => {
+                if (self.peekChar() == '=') {
+                    self.readChar();
+                    tok = Token.init(.gt_eq, ">=");
+                } else {
+                    tok = Token.init(.gt, ">");
+                }
+            },
             ',' => tok = Token.init(.comma, ","),
             ';' => tok = Token.init(.semicolon, ";"),
             '(' => tok = Token.init(.lparen, "("),

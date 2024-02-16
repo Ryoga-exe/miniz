@@ -17,6 +17,8 @@ pub const TokenType = enum {
     rem,
     lt,
     gt,
+    lt_eq,
+    gt_eq,
     eq,
     not_eq,
 
