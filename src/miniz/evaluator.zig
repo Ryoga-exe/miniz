@@ -1,4 +1,6 @@
 const std = @import("std");
+const Lexer = @import("lexer.zig").Lexer;
+const Parser = @import("parser.zig").Parser;
 const Expression = @import("ast.zig").Expression;
 
 const Object = enum {
@@ -49,4 +51,17 @@ pub fn eval(allocator: std.mem.Allocator, program: *Expression) !i64 {
         },
     }
     return 0;
+}
+
+test "eval: 1 + 2 * 3 + 4" {
+    const alloc = std.testing.allocator;
+    const input = "1 + 2 * 3 + 4";
+    var lexer = Lexer.init(input);
+    var parser = Parser.init(alloc, &lexer);
+    defer parser.deinit();
+    const e = try parser.parseProgram();
+    defer e.deinit(alloc);
+    const result = try eval(alloc, e);
+
+    try std.testing.expect(result == 11);
 }

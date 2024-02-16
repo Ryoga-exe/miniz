@@ -114,128 +114,77 @@ pub const Parser = struct {
     }
 };
 
+fn ParseTesting(allocator: Allocator, input: []const u8) ![]const u8 {
+    var lexer = Lexer.init(input);
+    var parser = Parser.init(allocator, &lexer);
+    defer parser.deinit();
+    const parse_result = try parser.parseProgram();
+    defer parse_result.deinit(allocator);
+    const str = try parse_result.toString(allocator);
+    errdefer allocator.free(str);
+
+    return str;
+}
+
 test "parse: 1234" {
     const alloc = std.testing.allocator;
-    const input = "1234";
-    var lexer = Lexer.init(input);
-    var parser = Parser.init(alloc, &lexer);
-    defer parser.deinit();
-    const e = try parser.parseProgram();
-    defer e.deinit(alloc);
-    const str = try e.toString(alloc);
-    defer alloc.free(str);
-
-    try std.testing.expectEqualSlices(u8, "1234", str);
+    const result = try ParseTesting(alloc, "1234");
+    defer alloc.free(result);
+    try std.testing.expectEqualSlices(u8, "1234", result);
 }
 
 test "parse: +1234" {
     const alloc = std.testing.allocator;
-    const input = "+1234";
-    var lexer = Lexer.init(input);
-    var parser = Parser.init(alloc, &lexer);
-    defer parser.deinit();
-    const e = try parser.parseProgram();
-    defer e.deinit(alloc);
-    const str = try e.toString(alloc);
-    defer alloc.free(str);
-
-    try std.testing.expectEqualSlices(u8, "(+ 1234)", str);
+    const result = try ParseTesting(alloc, "+1234");
+    defer alloc.free(result);
+    try std.testing.expectEqualSlices(u8, "(+ 1234)", result);
 }
 
 test "parse: -1234" {
     const alloc = std.testing.allocator;
-    const input = "-1234";
-    var lexer = Lexer.init(input);
-    var parser = Parser.init(alloc, &lexer);
-    defer parser.deinit();
-    const e = try parser.parseProgram();
-    defer e.deinit(alloc);
-    const str = try e.toString(alloc);
-    defer alloc.free(str);
-
-    try std.testing.expectEqualSlices(u8, "(- 1234)", str);
+    const result = try ParseTesting(alloc, "-1234");
+    defer alloc.free(result);
+    try std.testing.expectEqualSlices(u8, "(- 1234)", result);
 }
 
 test "parse (-1234)" {
     const alloc = std.testing.allocator;
-    const input = "(-1234)";
-    var lexer = Lexer.init(input);
-    var parser = Parser.init(alloc, &lexer);
-    defer parser.deinit();
-    const e = try parser.parseProgram();
-    defer e.deinit(alloc);
-    const str = try e.toString(alloc);
-    defer alloc.free(str);
-
-    try std.testing.expectEqualSlices(u8, "(paren (- 1234))", str);
+    const result = try ParseTesting(alloc, "(-1234)");
+    defer alloc.free(result);
+    try std.testing.expectEqualSlices(u8, "(paren (- 1234))", result);
 }
 
 test "parse: 1234 + 5678" {
     const alloc = std.testing.allocator;
-    const input = "1234 + 5678";
-    var lexer = Lexer.init(input);
-    var parser = Parser.init(alloc, &lexer);
-    defer parser.deinit();
-    const e = try parser.parseProgram();
-    defer e.deinit(alloc);
-    const str = try e.toString(alloc);
-    defer alloc.free(str);
-
-    try std.testing.expectEqualSlices(u8, "(+ 1234 5678)", str);
+    const result = try ParseTesting(alloc, "1234 + 5678");
+    defer alloc.free(result);
+    try std.testing.expectEqualSlices(u8, "(+ 1234 5678)", result);
 }
 
 test "parse: 1234 + -5678" {
     const alloc = std.testing.allocator;
-    const input = "1234 + -5678";
-    var lexer = Lexer.init(input);
-    var parser = Parser.init(alloc, &lexer);
-    defer parser.deinit();
-    const e = try parser.parseProgram();
-    defer e.deinit(alloc);
-    const str = try e.toString(alloc);
-    defer alloc.free(str);
-
-    try std.testing.expectEqualSlices(u8, "(+ 1234 (- 5678))", str);
+    const result = try ParseTesting(alloc, "1234 + -5678");
+    defer alloc.free(result);
+    try std.testing.expectEqualSlices(u8, "(+ 1234 (- 5678))", result);
 }
 
 test "parse: 1234--5678" {
     const alloc = std.testing.allocator;
-    const input = "1234--5678";
-    var lexer = Lexer.init(input);
-    var parser = Parser.init(alloc, &lexer);
-    defer parser.deinit();
-    const e = try parser.parseProgram();
-    defer e.deinit(alloc);
-    const str = try e.toString(alloc);
-    defer alloc.free(str);
-
-    try std.testing.expectEqualSlices(u8, "(- 1234 (- 5678))", str);
+    const result = try ParseTesting(alloc, "1234--5678");
+    defer alloc.free(result);
+    try std.testing.expectEqualSlices(u8, "(- 1234 (- 5678))", result);
 }
 
 test "parse: 1 + 2 + 3" {
     const alloc = std.testing.allocator;
-    const input = "1 + 2 + 3";
-    var lexer = Lexer.init(input);
-    var parser = Parser.init(alloc, &lexer);
-    defer parser.deinit();
-    const e = try parser.parseProgram();
-    defer e.deinit(alloc);
-    const str = try e.toString(alloc);
-    defer alloc.free(str);
-
-    try std.testing.expectEqualSlices(u8, "(+ (+ 1 2) 3)", str);
+    const result = try ParseTesting(alloc, "1 + 2 + 3");
+    defer alloc.free(result);
+    try std.testing.expectEqualSlices(u8, "(+ (+ 1 2) 3)", result);
 }
 
 test "parse: 1 + 2 * 3 + 4" {
     const alloc = std.testing.allocator;
-    const input = "1 + 2 * 3 + 4";
-    var lexer = Lexer.init(input);
-    var parser = Parser.init(alloc, &lexer);
-    defer parser.deinit();
-    const e = try parser.parseProgram();
-    defer e.deinit(alloc);
-    const str = try e.toString(alloc);
-    defer alloc.free(str);
-
-    try std.testing.expectEqualSlices(u8, "(+ (+ 1 (* 2 3)) 4)", str);
+    const result = try ParseTesting(alloc, "1 + 2 * 3 + 4");
+    defer alloc.free(result);
+    try std.testing.expectEqualSlices(u8, "(+ (+ 1 (* 2 3)) 4)", result);
 }
