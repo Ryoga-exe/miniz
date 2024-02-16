@@ -18,7 +18,6 @@ pub const Operator = enum {
     not_eq,
     assign,
     paren,
-    block,
     none,
 
     pub fn prefixPrecedence(self: Self) ?u8 {
@@ -26,7 +25,6 @@ pub const Operator = enum {
             .plus => 91,
             .minus => 91,
             .paren => 0,
-            .block => 0,
             else => null,
         };
     }
@@ -64,8 +62,6 @@ pub const Operator = enum {
             .not_eq => .not_eq,
             .lparen => .paren,
             .rparen => .paren,
-            .lbrace => .block,
-            .rbrace => .block,
             else => .none,
         };
     }
@@ -86,8 +82,6 @@ pub const Operator = enum {
             .{ "(", .paren },
             .{ ")", .paren },
             .{ "=", .assign },
-            .{ "{", .block },
-            .{ "}", .block },
         });
         if (map.get(operator)) |ope| {
             return ope;
@@ -110,7 +104,6 @@ pub const Operator = enum {
             .not_eq => "!=",
             .paren => "paren",
             .assign => "=",
-            .block => "block",
             else => "",
         };
     }

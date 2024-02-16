@@ -31,14 +31,13 @@ pub const Parser = struct {
     pub fn parseProgram(self: *Self) Error!*ast.Program {
         var program = try ast.Program.init(self.allocator);
         while (self.currentToken.type != .eof) {
-            if (try self.parseStatement()) |statement| {
-                try program.statements.append(statement);
-            }
+            const statement = try self.parseStatement();
+            try program.statements.append(statement);
             self.nextToken();
         }
         return program;
     }
-    fn parseStatement(self: *Self) !?*ast.Statement {
+    fn parseStatement(self: *Self) !*ast.Statement {
         return switch (self.currentToken.type) {
             .keyword_return => self.parseReturnStatement(),
             else => self.parseExpressionStatement(),
@@ -119,6 +118,7 @@ pub const Parser = struct {
             .plus => self.parsePrefixOnce(Operator.plus),
             .minus => self.parsePrefixOnce(Operator.minus),
             .lparen => self.parsePrefixParen(),
+            .keyword_if => self.parsePrefixIf(),
             else => try self.parseAtom(),
         };
     }
@@ -131,10 +131,32 @@ pub const Parser = struct {
         self.nextToken();
         const following = try self.parseExpr(Operator.paren.prefixPrecedence().?);
         if (self.currentToken.type != .rparen) {
-            unreachable; // expected ')', found self.currentToken.type
+            unreachable; // expected ')', found {self.currentToken.type}
         }
         self.nextToken();
         return try Expression.createUnaryExpression(self.allocator, .paren, following);
+    }
+    fn parsePrefixIf(self: *Self) Error!*Expression {
+        self.nextToken();
+        if (self.currentToken.type != .lparen) {
+            unreachable; // expected '(' after if, found {self.currentToken.type}
+        }
+        self.nextToken();
+        const condition = try self.parseExpr(0);
+        if (self.currentToken.type != .rparen) {
+            unreachable; // expected ')', found {self.currentToken.type}
+        }
+        self.nextToken();
+
+        const consequence = try self.parseStatement();
+
+        var alternative: ?*ast.Statement = null;
+        if (self.peekToken.type == .keyword_else) {
+            self.nextToken();
+            self.nextToken();
+            alternative = try self.parseStatement();
+        }
+        return try Expression.createIfExpression(self.allocator, condition, consequence, alternative);
     }
     fn parseInfixOnce(self: *Self, operator: Operator, leading: *Expression) Error!*Expression {
         self.nextToken();
@@ -177,6 +199,8 @@ test "parseProgram" {
         .{ .input = "-100 %% 100 + - 10 % 10 * 20", .expect = "(expr (+ (%% (- 100) 100) (* (% (- 10) 10) 20)))" },
         .{ .input = "mod = 998244353", .expect = "(expr (= mod 998244353))" },
         .{ .input = "foobar = 1 + 3 + 5", .expect = "(expr (= foobar (+ (+ 1 3) 5)))" },
+        .{ .input = "if (x < y) 2; else 3;", .expect = "(expr (if (< x y) (expr 2) (expr 3)))" },
+        .{ .input = "if (x + 1 < y + 4) 55;", .expect = "(expr (if (< (+ x 1) (+ y 4)) (expr 55)))" },
     };
     for (tests) |t| {
         const result = try ParseTesting(alloc, t.input);

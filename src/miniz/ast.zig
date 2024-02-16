@@ -128,6 +128,38 @@ const ReturnStatement = struct {
     }
 };
 
+const BlockStatement = struct {
+    const Self = @This();
+
+    statements: std.ArrayList(*Statement),
+
+    pub fn init(allocator: Allocator) !*Self {
+        const stmt = try allocator.create(Self);
+        stmt.* = Self{
+            .statement = std.ArrayList(*Statement).init(allocator),
+        };
+        return stmt;
+    }
+    pub fn deinit(self: *Self, allocator: Allocator) void {
+        for (self.statements.items) |statement| {
+            statement.deinit(allocator);
+        }
+        self.statements.deinit();
+        allocator.destroy(self);
+    }
+    pub fn render(self: Self, buffer: *std.ArrayList(u8)) Error!void {
+        const writer = buffer.writer();
+        try writer.writeAll("(block ");
+        for (self.statements.items, 0..) |statement, index| {
+            if (index > 0) {
+                try writer.writeAll(";");
+            }
+            try statement.render(buffer);
+        }
+        try writer.writeAll(")");
+    }
+};
+
 pub const Expression = union(enum) {
     const Self = @This();
 
@@ -135,6 +167,7 @@ pub const Expression = union(enum) {
     identifier: []const u8,
     binary_expression: *BinaryExpression,
     unary_expression: *UnaryExpression,
+    if_expression: *IfExpression,
 
     pub fn init(allocator: Allocator) !*Self {
         return try allocator.create(Self);
@@ -167,15 +200,26 @@ pub const Expression = union(enum) {
         };
         return expr;
     }
+    pub fn createIfExpression(allocator: Allocator, condition: *Expression, consequence: *Statement, alternative: ?*Statement) !*Self {
+        const expr = try allocator.create(Self);
+        expr.* = Self{
+            .if_expression = try IfExpression.init(allocator, condition, consequence, alternative),
+        };
+        return expr;
+    }
     pub fn deinit(self: *Self, allocator: Allocator) void {
         switch (self.*) {
+            .integer => {},
+            .identifier => {},
             .binary_expression => |bexpr| {
                 bexpr.deinit(allocator);
             },
             .unary_expression => |uexpr| {
                 uexpr.deinit(allocator);
             },
-            else => {},
+            .if_expression => |ifexpr| {
+                ifexpr.deinit(allocator);
+            },
         }
         allocator.destroy(self);
     }
@@ -193,6 +237,7 @@ pub const Expression = union(enum) {
             .identifier => |identifier| try writer.writeAll(identifier),
             .binary_expression => |bexpr| try bexpr.render(buffer),
             .unary_expression => |uexpr| try uexpr.render(buffer),
+            .if_expression => |ifexpr| try ifexpr.render(buffer),
         }
     }
 };
@@ -250,6 +295,44 @@ const BinaryExpression = struct {
         try self.lhs.render(buffer);
         try writer.writeAll(" ");
         try self.rhs.render(buffer);
+        try writer.writeAll(")");
+    }
+};
+
+const IfExpression = struct {
+    const Self = @This();
+
+    condition: *Expression,
+    consequence: *Statement,
+    alternative: ?*Statement,
+
+    pub fn init(allocator: Allocator, condition: *Expression, consequence: *Statement, alternative: ?*Statement) !*Self {
+        const expr = try allocator.create(Self);
+        expr.* = Self{
+            .condition = condition,
+            .consequence = consequence,
+            .alternative = alternative,
+        };
+        return expr;
+    }
+    pub fn deinit(self: *Self, allocator: Allocator) void {
+        self.condition.deinit(allocator);
+        self.consequence.deinit(allocator);
+        if (self.alternative) |alternative| {
+            alternative.deinit(allocator);
+        }
+        allocator.destroy(self);
+    }
+    pub fn render(self: Self, buffer: *std.ArrayList(u8)) Error!void {
+        const writer = buffer.writer();
+        try writer.writeAll("(if ");
+        try self.condition.render(buffer);
+        try writer.writeAll(" ");
+        try self.consequence.render(buffer);
+        if (self.alternative) |alternative| {
+            try writer.writeAll(" ");
+            try alternative.render(buffer);
+        }
         try writer.writeAll(")");
     }
 };
