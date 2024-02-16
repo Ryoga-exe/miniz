@@ -1,4 +1,7 @@
 const std = @import("std");
+const Lexer = @import("lexer.zig").Lexer;
+const Parser = @import("parser.zig").Parser;
+const evaluator = @import("evaluator.zig");
 const Prompt = "> ";
 const BufferSize = 8192;
 
@@ -27,11 +30,19 @@ pub fn start(allocator: std.mem.Allocator) !void {
             error.EndOfStream => break,
             else => return err,
         };
-        if (line) |ln| {
-            if (ln.len == 0) {
+        if (line) |input| {
+            if (input.len == 0) {
                 continue;
             }
-            try stdout.print("{s}\n", .{ln});
+
+            var lexer = Lexer.init(input);
+            var parser = Parser.init(allocator, &lexer);
+            defer parser.deinit();
+            const e = try parser.parseProgram();
+            defer e.deinit(allocator);
+
+            const result = try evaluator.eval(allocator, e);
+            try stdout.print("{d}\n", .{result});
             // const result = eval(...)
             // try stdout.print("{s}\n", result.toString()...)
         }
