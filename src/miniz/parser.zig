@@ -1,5 +1,6 @@
 const std = @import("std");
 const Expression = @import("ast.zig").Expression;
+const Operator = @import("operator.zig").Operator;
 const Token = @import("token.zig").Token;
 const Lexer = @import("lexer.zig").Lexer;
 const Allocator = std.mem.Allocator;
@@ -34,13 +35,13 @@ pub const Parser = struct {
                 const pos_precedence: u8 = 51;
                 self.nextToken();
                 const following = try self.parseExpr(pos_precedence);
-                break :blk try Expression.createUnaryExpression(self.allocator, "+", following);
+                break :blk try Expression.createUnaryExpression(self.allocator, .plus, following);
             },
             .minus => blk: {
                 const neg_precedence: u8 = 51;
                 self.nextToken();
                 const following = try self.parseExpr(neg_precedence);
-                break :blk try Expression.createUnaryExpression(self.allocator, "-", following);
+                break :blk try Expression.createUnaryExpression(self.allocator, .minus, following);
             },
             .lparen => blk: {
                 self.nextToken();
@@ -50,7 +51,7 @@ pub const Parser = struct {
                 }
                 self.nextToken();
 
-                break :blk try Expression.createUnaryExpression(self.allocator, "paren", following);
+                break :blk try Expression.createUnaryExpression(self.allocator, .paren, following);
             },
             else => self.parseAtom(),
         };
@@ -76,19 +77,19 @@ pub const Parser = struct {
                     const plus_presedence: u8 = 51;
                     self.nextToken();
                     const following = try self.parseExpr(plus_presedence);
-                    leading = try Expression.createBinaryExpression(self.allocator, "+", leading, following);
+                    leading = try Expression.createBinaryExpression(self.allocator, .plus, leading, following);
                 },
                 .minus => {
                     const minus_presedence: u8 = 51;
                     self.nextToken();
                     const following = try self.parseExpr(minus_presedence);
-                    leading = try Expression.createBinaryExpression(self.allocator, "-", leading, following);
+                    leading = try Expression.createBinaryExpression(self.allocator, .minus, leading, following);
                 },
                 .asterisk => {
                     const asterisk_presedence: u8 = 81;
                     self.nextToken();
                     const following = try self.parseExpr(asterisk_presedence);
-                    leading = try Expression.createBinaryExpression(self.allocator, "*", leading, following);
+                    leading = try Expression.createBinaryExpression(self.allocator, .asterisk, leading, following);
                 },
                 else => return leading,
             }

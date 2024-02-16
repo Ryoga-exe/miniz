@@ -32,25 +32,19 @@ pub fn eval(allocator: std.mem.Allocator, program: *Expression) !i64 {
             return integer;
         },
         .unary_expression => |uexpr| {
-            if (std.mem.eql(u8, "+", uexpr.operator)) {
-                return try eval(allocator, uexpr.operand);
-            } else if (std.mem.eql(u8, "-", uexpr.operator)) {
-                return try eval(allocator, uexpr.operand) * (-1);
-            } else if (std.mem.eql(u8, "paren", uexpr.operator)) {
-                return try eval(allocator, uexpr.operand);
-            } else {
-                unreachable;
+            switch (uexpr.operator) {
+                .plus => return try eval(allocator, uexpr.operand),
+                .minus => return try eval(allocator, uexpr.operand) * (-1),
+                .paren => return try eval(allocator, uexpr.operand),
+                else => unreachable,
             }
         },
         .binary_expression => |bexpr| {
-            if (std.mem.eql(u8, "+", bexpr.operator)) {
-                return try eval(allocator, bexpr.lhs) + try eval(allocator, bexpr.rhs);
-            } else if (std.mem.eql(u8, "-", bexpr.operator)) {
-                return try eval(allocator, bexpr.lhs) - try eval(allocator, bexpr.rhs);
-            } else if (std.mem.eql(u8, "*", bexpr.operator)) {
-                return try eval(allocator, bexpr.lhs) * try eval(allocator, bexpr.rhs);
-            } else {
-                unreachable;
+            switch (bexpr.operator) {
+                .plus => return try eval(allocator, bexpr.lhs) + try eval(allocator, bexpr.rhs),
+                .minus => return try eval(allocator, bexpr.lhs) - try eval(allocator, bexpr.rhs),
+                .asterisk => return try eval(allocator, bexpr.lhs) * try eval(allocator, bexpr.rhs),
+                else => unreachable,
             }
         },
     }

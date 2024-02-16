@@ -1,5 +1,6 @@
 const std = @import("std");
-const Token = @import("token").Token;
+const Token = @import("token.zig").Token;
+const Operator = @import("operator.zig").Operator;
 const Allocator = std.mem.Allocator;
 
 const Error = error{OutOfMemory};
@@ -21,14 +22,14 @@ pub const Expression = union(enum) {
         };
         return expr;
     }
-    pub fn createUnaryExpression(allocator: Allocator, operator: []const u8, operand: *Expression) !*Self {
+    pub fn createUnaryExpression(allocator: Allocator, operator: Operator, operand: *Expression) !*Self {
         const expr = try allocator.create(Self);
         expr.* = Self{
             .unary_expression = try UnaryExpression.init(allocator, operator, operand),
         };
         return expr;
     }
-    pub fn createBinaryExpression(allocator: Allocator, operator: []const u8, lhs: *Expression, rhs: *Expression) !*Self {
+    pub fn createBinaryExpression(allocator: Allocator, operator: Operator, lhs: *Expression, rhs: *Expression) !*Self {
         const expr = try allocator.create(Self);
         expr.* = Self{
             .binary_expression = try BinaryExpression.init(allocator, operator, lhs, rhs),
@@ -67,10 +68,10 @@ pub const Expression = union(enum) {
 pub const UnaryExpression = struct {
     const Self = @This();
 
-    operator: []const u8,
+    operator: Operator,
     operand: *Expression,
 
-    pub fn init(allocator: Allocator, operator: []const u8, operand: *Expression) !*Self {
+    pub fn init(allocator: Allocator, operator: Operator, operand: *Expression) !*Self {
         const expr = try allocator.create(Self);
         expr.* = Self{
             .operator = operator,
@@ -84,7 +85,7 @@ pub const UnaryExpression = struct {
     }
     pub fn render(self: Self, buffer: *std.ArrayList(u8)) Error!void {
         const writer = buffer.writer();
-        try writer.print("({s} ", .{self.operator});
+        try writer.print("({s} ", .{self.operator.toString()});
         try self.operand.render(buffer);
         try writer.writeAll(")");
     }
@@ -93,11 +94,11 @@ pub const UnaryExpression = struct {
 pub const BinaryExpression = struct {
     const Self = @This();
 
-    operator: []const u8,
+    operator: Operator,
     lhs: *Expression,
     rhs: *Expression,
 
-    pub fn init(allocator: Allocator, operator: []const u8, lhs: *Expression, rhs: *Expression) !*Self {
+    pub fn init(allocator: Allocator, operator: Operator, lhs: *Expression, rhs: *Expression) !*Self {
         const expr = try allocator.create(Self);
         expr.* = Self{
             .operator = operator,
@@ -113,7 +114,7 @@ pub const BinaryExpression = struct {
     }
     pub fn render(self: Self, buffer: *std.ArrayList(u8)) Error!void {
         const writer = buffer.writer();
-        try writer.print("({s} ", .{self.operator});
+        try writer.print("({s} ", .{self.operator.toString()});
         try self.lhs.render(buffer);
         try writer.writeAll(" ");
         try self.rhs.render(buffer);
@@ -125,11 +126,11 @@ test "toString" {
     const alloc = std.testing.allocator;
     const e = try Expression.createBinaryExpression(
         alloc,
-        "+",
+        .plus,
         try Expression.createInteger(alloc, 1),
         try Expression.createBinaryExpression(
             alloc,
-            "+",
+            .plus,
             try Expression.createInteger(alloc, 2),
             try Expression.createInteger(alloc, 3),
         ),
