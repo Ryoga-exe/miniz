@@ -51,6 +51,7 @@ pub const Lexer = struct {
             '-' => tok = Token.init(.minus, "-"),
             '*' => tok = Token.init(.asterisk, "*"),
             '/' => tok = Token.init(.slash, "/"),
+            '%' => tok = Token.init(.percent, "%"),
             '<' => tok = Token.init(.lt, "<"),
             '>' => tok = Token.init(.gt, ">"),
             ',' => tok = Token.init(.comma, ","),
@@ -69,6 +70,8 @@ pub const Lexer = struct {
                     tok.type = .integer;
                     tok.literal = self.readNumber();
                     return tok;
+                } else {
+                    unreachable; // unexpected literal
                 }
             },
         }

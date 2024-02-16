@@ -13,6 +13,7 @@ pub const TokenType = enum {
     bang,
     asterisk,
     slash,
+    percent,
     lt,
     gt,
     eq,
