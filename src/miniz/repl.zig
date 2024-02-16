@@ -23,7 +23,8 @@ pub fn start(allocator: std.mem.Allocator) !void {
     ;
 
     try stdout.print("{s}\n", .{welcome_message});
-    // var env = ...
+    var env = evaluator.Env.init(allocator);
+    defer env.deinit();
     while (true) {
         try stdout.print("{s}", .{Prompt});
         const line = readLine(allocator, stdin) catch |err| switch (err) {
@@ -41,10 +42,8 @@ pub fn start(allocator: std.mem.Allocator) !void {
             const e = try parser.parseProgram();
             defer e.deinit(allocator);
 
-            const result = try evaluator.eval(allocator, e);
-            try stdout.print("{d}\n", .{result});
-            // const result = eval(...)
-            // try stdout.print("{s}\n", result.toString()...)
+            const result = try evaluator.eval(allocator, e, &env);
+            try stdout.print("{d}\n\n", .{result});
         }
     }
 }

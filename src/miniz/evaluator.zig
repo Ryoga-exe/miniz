@@ -9,23 +9,35 @@ const Object = enum {
     // undefined,
 };
 
-const env = struct {
+pub const Env = struct {
     const Self = @This();
 
     allocator: std.mem.Allocator,
-    map: std.StringArrayHashMap(*Expression),
+    map: std.StringArrayHashMap(i64),
+    // map: std.StringArrayHashMap(*Expression),
 
     pub fn init(allocator: std.mem.Allocator) Self {
         return Self{
             .allocator = allocator,
-            .map = std.StringArrayHashMap(*Expression).init(allocator),
+            .map = std.StringArrayHashMap(i64).init(allocator),
         };
+    }
+    pub fn deinit(self: *Self) void {
+        self.map.deinit();
+    }
+    pub fn set(self: *Self, identifier: []const u8, expression: i64) !void {
+        try self.map.put(identifier, expression);
+    }
+    pub fn get(self: *Self, identifier: []const u8) i64 {
+        if (self.map.get(identifier)) |expr| {
+            return expr;
+        } else {
+            unreachable; // {identifier} is not defined
+        }
     }
 };
 
-// pub fn eval() ?Object {}
-
-pub fn eval(allocator: std.mem.Allocator, program: *Expression) !i64 {
+pub fn eval(allocator: std.mem.Allocator, program: *Expression, env: *Env) !i64 {
     var buffer = std.ArrayList(u8).init(allocator);
     const writer = buffer.writer();
     _ = writer;
@@ -34,24 +46,27 @@ pub fn eval(allocator: std.mem.Allocator, program: *Expression) !i64 {
             return integer;
         },
         .identifier => |identifier| {
-            _ = identifier;
-            return 0;
+            return env.get(identifier);
         },
         .unary_expression => |uexpr| {
             switch (uexpr.operator) {
-                .plus => return try eval(allocator, uexpr.operand),
-                .minus => return try eval(allocator, uexpr.operand) * (-1),
-                .paren => return try eval(allocator, uexpr.operand),
+                .plus => return try eval(allocator, uexpr.operand, env),
+                .minus => return try eval(allocator, uexpr.operand, env) * (-1),
+                .paren => return try eval(allocator, uexpr.operand, env),
                 else => unreachable,
             }
         },
         .binary_expression => |bexpr| {
             switch (bexpr.operator) {
-                .plus => return try eval(allocator, bexpr.lhs) + try eval(allocator, bexpr.rhs),
-                .minus => return try eval(allocator, bexpr.lhs) - try eval(allocator, bexpr.rhs),
-                .asterisk => return try eval(allocator, bexpr.lhs) * try eval(allocator, bexpr.rhs),
-                .slash => return @divFloor(try eval(allocator, bexpr.lhs), try eval(allocator, bexpr.rhs)),
-                .assign => return try eval(allocator, bexpr.rhs),
+                .plus => return try eval(allocator, bexpr.lhs, env) + try eval(allocator, bexpr.rhs, env),
+                .minus => return try eval(allocator, bexpr.lhs, env) - try eval(allocator, bexpr.rhs, env),
+                .asterisk => return try eval(allocator, bexpr.lhs, env) * try eval(allocator, bexpr.rhs, env),
+                .slash => return @divFloor(try eval(allocator, bexpr.lhs, env), try eval(allocator, bexpr.rhs, env)),
+                .assign => {
+                    const result = try eval(allocator, bexpr.rhs, env);
+                    try env.set(bexpr.lhs.identifier, result);
+                    return result;
+                },
                 else => unreachable,
             }
         },
