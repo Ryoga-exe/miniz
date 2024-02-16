@@ -8,7 +8,8 @@ pub const Operator = enum {
     minus,
     asterisk,
     slash,
-    percent,
+    mod,
+    rem,
     assign,
     paren,
     block,
@@ -16,8 +17,8 @@ pub const Operator = enum {
 
     pub fn prefixPrecedence(self: Self) ?u8 {
         return switch (self) {
-            .plus => 51,
-            .minus => 51,
+            .plus => 91,
+            .minus => 91,
             .paren => 0,
             .block => 0,
             else => null,
@@ -29,7 +30,8 @@ pub const Operator = enum {
             .minus => .{ 50, 51 },
             .asterisk => .{ 80, 81 },
             .slash => .{ 80, 81 },
-            .percent => .{ 80, 81 },
+            .mod => .{ 80, 81 },
+            .rem => .{ 80, 81 },
             .assign => .{ 21, 20 },
             else => null,
         };
@@ -40,7 +42,8 @@ pub const Operator = enum {
             .minus => .minus,
             .asterisk => .asterisk,
             .slash => .slash,
-            .percent => .percent,
+            .mod => .mod,
+            .rem => .rem,
             .lparen => .paren,
             .rparen => .paren,
             .lbrace => .block,
@@ -54,7 +57,8 @@ pub const Operator = enum {
             .{ "-", .minus },
             .{ "*", .asterisk },
             .{ "/", .slash },
-            .{ "%", .percent },
+            .{ "%", .mod },
+            .{ "%%", .rem },
             .{ "(", .paren },
             .{ ")", .paren },
             .{ "=", .assign },
@@ -72,7 +76,8 @@ pub const Operator = enum {
             .minus => "-",
             .asterisk => "*",
             .slash => "/",
-            .percent => "%",
+            .mod => "%",
+            .rem => "%%",
             .paren => "paren",
             .assign => "==",
             .block => "block",
@@ -82,7 +87,7 @@ pub const Operator = enum {
 };
 
 test "Precedence" {
-    try std.testing.expect(Operator.plus.prefixPrecedence().? == 51);
+    try std.testing.expect(Operator.plus.prefixPrecedence().? == 91);
     try std.testing.expect(Operator.asterisk.prefixPrecedence() == null);
 
     try std.testing.expect(Operator.plus.infixPrecedence().?[0] == 50);

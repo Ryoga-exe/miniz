@@ -48,7 +48,8 @@ pub const Parser = struct {
                 .minus => leading = try self.parseInfixOnce(Operator.minus, leading),
                 .asterisk => leading = try self.parseInfixOnce(Operator.asterisk, leading),
                 .slash => leading = try self.parseInfixOnce(Operator.slash, leading),
-                .percent => leading = try self.parseInfixOnce(Operator.percent, leading),
+                .mod => leading = try self.parseInfixOnce(Operator.mod, leading),
+                .rem => leading = try self.parseInfixOnce(Operator.rem, leading),
                 .assign => {
                     switch (leading.*) {
                         .identifier => {},

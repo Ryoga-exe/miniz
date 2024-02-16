@@ -35,6 +35,7 @@ pub const Lexer = struct {
         switch (self.ch) {
             '=' => {
                 if (self.peekChar() == '=') {
+                    self.readChar();
                     tok = Token.init(.eq, "==");
                 } else {
                     tok = Token.init(.assign, "=");
@@ -42,6 +43,7 @@ pub const Lexer = struct {
             },
             '!' => {
                 if (self.peekChar() == '=') {
+                    self.readChar();
                     tok = Token.init(.not_eq, "!=");
                 } else {
                     tok = Token.init(.bang, "!");
@@ -51,7 +53,14 @@ pub const Lexer = struct {
             '-' => tok = Token.init(.minus, "-"),
             '*' => tok = Token.init(.asterisk, "*"),
             '/' => tok = Token.init(.slash, "/"),
-            '%' => tok = Token.init(.percent, "%"),
+            '%' => {
+                if (self.peekChar() == '%') {
+                    self.readChar();
+                    tok = Token.init(.rem, "%%");
+                } else {
+                    tok = Token.init(.mod, "%");
+                }
+            },
             '<' => tok = Token.init(.lt, "<"),
             '>' => tok = Token.init(.gt, ">"),
             ',' => tok = Token.init(.comma, ","),
@@ -124,6 +133,7 @@ test "Lexer" {
         \\while(i < 0) {
         \\    i = i + 1;
         \\}
+        \\rem = -10 %% 50;
     ;
     const tests = [_]Token{
         Token.init(.identifier, "five"),
@@ -152,6 +162,13 @@ test "Lexer" {
         Token.init(.integer, "1"),
         Token.init(.semicolon, ";"),
         Token.init(.rbrace, "}"),
+        Token.init(.identifier, "rem"),
+        Token.init(.assign, "="),
+        Token.init(.minus, "-"),
+        Token.init(.integer, "10"),
+        Token.init(.rem, "%%"),
+        Token.init(.integer, "50"),
+        Token.init(.semicolon, ";"),
         Token.init(.eof, ""),
     };
     var lexer = Lexer.init(input);

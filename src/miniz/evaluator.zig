@@ -62,7 +62,8 @@ pub fn eval(allocator: std.mem.Allocator, program: *Expression, env: *Env) !i64 
                 .minus => return try eval(allocator, bexpr.lhs, env) - try eval(allocator, bexpr.rhs, env),
                 .asterisk => return try eval(allocator, bexpr.lhs, env) * try eval(allocator, bexpr.rhs, env),
                 .slash => return @divFloor(try eval(allocator, bexpr.lhs, env), try eval(allocator, bexpr.rhs, env)),
-                .percent => return @mod(try eval(allocator, bexpr.lhs, env), try eval(allocator, bexpr.rhs, env)),
+                .mod => return @mod(try eval(allocator, bexpr.lhs, env), try eval(allocator, bexpr.rhs, env)),
+                .rem => return @rem(try eval(allocator, bexpr.lhs, env), try eval(allocator, bexpr.rhs, env)),
                 .assign => {
                     const result = try eval(allocator, bexpr.rhs, env);
                     try env.set(bexpr.lhs.identifier, result);

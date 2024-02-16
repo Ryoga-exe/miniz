@@ -41,8 +41,12 @@ pub fn start(allocator: std.mem.Allocator) !void {
             defer parser.deinit();
             const e = try parser.parseProgram();
             defer e.deinit(allocator);
+            const str = try e.toString(allocator);
+            defer allocator.free(str);
 
             const result = try evaluator.eval(allocator, e, &env);
+
+            try stdout.print("{s}\n\n", .{str});
             try stdout.print("{d}\n\n", .{result});
         }
     }
