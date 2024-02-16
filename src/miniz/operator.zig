@@ -10,6 +10,7 @@ pub const Operator = enum {
     slash,
     assign,
     paren,
+    block,
     none,
 
     pub fn prefixPrecedence(self: Self) ?u8 {
@@ -17,6 +18,7 @@ pub const Operator = enum {
             .plus => 51,
             .minus => 51,
             .paren => 0,
+            .block => 0,
             else => null,
         };
     }
@@ -25,6 +27,7 @@ pub const Operator = enum {
             .plus => .{ 50, 51 },
             .minus => .{ 50, 51 },
             .asterisk => .{ 80, 81 },
+            .slash => .{ 80, 81 },
             .assign => .{ 21, 20 },
             else => null,
         };
@@ -37,6 +40,8 @@ pub const Operator = enum {
             .slash => .slash,
             .lparen => .paren,
             .rparen => .paren,
+            .lbrace => .block,
+            .rbrace => .block,
             else => .none,
         };
     }
@@ -49,6 +54,8 @@ pub const Operator = enum {
             .{ "(", .paren },
             .{ ")", .paren },
             .{ "==", .assign },
+            .{ "{", .block },
+            .{ "}", .block },
         });
         if (map.get(operator)) |ope| {
             return ope;
@@ -63,6 +70,7 @@ pub const Operator = enum {
             .slash => "/",
             .paren => "paren",
             .assign => "==",
+            .block => "block",
             else => "",
         };
     }

@@ -7,6 +7,7 @@ const Allocator = std.mem.Allocator;
 
 pub const Parser = struct {
     const Self = @This();
+    const Error = error{ OutOfMemory, Overflow, InvalidCharacter };
     allocator: Allocator,
     lexer: *Lexer,
     currentToken: Token,
@@ -26,94 +27,39 @@ pub const Parser = struct {
     pub fn deinit(self: *Self) void {
         _ = self;
     }
-    pub fn parseProgram(self: *Self) !*Expression {
+    pub fn parseProgram(self: *Self) Error!*Expression {
         return self.parseExpr(0);
     }
-    fn parseExpr(self: *Self, precedence: u8) !*Expression {
-        var leading = try switch (self.currentToken.type) {
-            .plus => blk: {
-                const pos_precedence: u8 = 51;
-                self.nextToken();
-                const following = try self.parseExpr(pos_precedence);
-                break :blk try Expression.createUnaryExpression(self.allocator, .plus, following);
-            },
-            .minus => blk: {
-                const neg_precedence: u8 = 51;
-                self.nextToken();
-                const following = try self.parseExpr(neg_precedence);
-                break :blk try Expression.createUnaryExpression(self.allocator, .minus, following);
-            },
-            .lparen => blk: {
-                self.nextToken();
-                const following = try self.parseExpr(0);
-                if (self.currentToken.type != .rparen) {
-                    unreachable; // expected ')'
-                }
-                self.nextToken();
-
-                break :blk try Expression.createUnaryExpression(self.allocator, .paren, following);
-            },
-            else => self.parseAtom(),
-        };
+    fn parseExpr(self: *Self, precedence: u8) Error!*Expression {
+        var leading = try self.parsePrefix();
         while (true) {
             switch (self.currentToken.type) {
                 .eof => return leading,
                 else => |c| {
-                    const next_precedence: ?u8 = switch (c) {
-                        .plus => 50,
-                        .minus => 50,
-                        .asterisk => 80,
-                        .slash => 80,
-                        .assign => 21,
-                        else => null,
-                    };
-                    if (next_precedence) |next| {
-                        if (next <= precedence) {
+                    if (Operator.fromTokenType(c).infixPrecedence()) |next| {
+                        if (next[0] <= precedence) {
                             return leading;
                         }
                     }
                 },
             }
             switch (self.currentToken.type) {
-                .plus => {
-                    const plus_presedence: u8 = 51;
-                    self.nextToken();
-                    const following = try self.parseExpr(plus_presedence);
-                    leading = try Expression.createBinaryExpression(self.allocator, .plus, leading, following);
-                },
-                .minus => {
-                    const minus_presedence: u8 = 51;
-                    self.nextToken();
-                    const following = try self.parseExpr(minus_presedence);
-                    leading = try Expression.createBinaryExpression(self.allocator, .minus, leading, following);
-                },
-                .asterisk => {
-                    const asterisk_presedence: u8 = 81;
-                    self.nextToken();
-                    const following = try self.parseExpr(asterisk_presedence);
-                    leading = try Expression.createBinaryExpression(self.allocator, .asterisk, leading, following);
-                },
-                .slash => {
-                    const slash_presedence: u8 = 81;
-                    self.nextToken();
-                    const following = try self.parseExpr(slash_presedence);
-                    leading = try Expression.createBinaryExpression(self.allocator, .slash, leading, following);
-                },
+                .plus => leading = try self.parseInfixOnce(Operator.plus, leading),
+                .minus => leading = try self.parseInfixOnce(Operator.minus, leading),
+                .asterisk => leading = try self.parseInfixOnce(Operator.asterisk, leading),
+                .slash => leading = try self.parseInfixOnce(Operator.slash, leading),
                 .assign => {
-                    const assign_presedence: u8 = 20;
-                    self.nextToken();
-                    const following = try self.parseExpr(assign_presedence);
                     switch (leading.*) {
                         .identifier => {},
                         else => unreachable, // expected identifier
                     }
-                    leading = try Expression.createBinaryExpression(self.allocator, .assign, leading, following);
+                    leading = try self.parseInfixOnce(Operator.assign, leading);
                 },
                 else => return leading,
             }
         }
     }
-    fn parseAtom(self: *Self) !*Expression {
+    fn parseAtom(self: *Self) Error!*Expression {
         switch (self.currentToken.type) {
             .integer => {
                 const value = try std.fmt.parseInt(i64, self.currentToken.literal, 10);
@@ -130,6 +76,33 @@ pub const Parser = struct {
                 unreachable; // expected literal or identifier
             },
         }
+    }
+    fn parsePrefix(self: *Self) Error!*Expression {
+        return switch (self.currentToken.type) {
+            .plus => self.parsePrefixOnce(Operator.plus),
+            .minus => self.parsePrefixOnce(Operator.minus),
+            .lparen => self.parsePrefixParen(),
+            else => try self.parseAtom(),
+        };
+    }
+    fn parsePrefixOnce(self: *Self, operator: Operator) Error!*Expression {
+        self.nextToken();
+        const following = try self.parseExpr(operator.prefixPrecedence().?);
+        return try Expression.createUnaryExpression(self.allocator, operator, following);
+    }
+    fn parsePrefixParen(self: *Self) Error!*Expression {
+        self.nextToken();
+        const following = try self.parseExpr(Operator.paren.prefixPrecedence().?);
+        if (self.currentToken.type != .rparen) {
+            unreachable; // expected ')', found self.currentToken.type
+        }
+        self.nextToken();
+        return try Expression.createUnaryExpression(self.allocator, .paren, following);
+    }
+    fn parseInfixOnce(self: *Self, operator: Operator, leading: *Expression) Error!*Expression {
+        self.nextToken();
+        const following = try self.parseExpr(operator.infixPrecedence().?[1]);
+        return try Expression.createBinaryExpression(self.allocator, operator, leading, following);
     }
     fn nextToken(self: *Self) void {
         self.currentToken = self.peekToken;
