@@ -2,53 +2,48 @@ const std = @import("std");
 const Token = @import("token").Token;
 const Allocator = std.mem.Allocator;
 
-pub const SExpr = union(enum) {
+const Error = error{OutOfMemory};
+
+pub const Expression = union(enum) {
     const Self = @This();
 
-    atom: std.ArrayList(u8),
-    // atom_symbol: std.ArrayList(u8),
-    // atom_integer: i16,
-    // atom_boolean: bool,
-    // atom_string: std.ArrayList(u8),
-    list: ?std.ArrayList(*SExpr),
+    integer: i64,
+    binary_expression: *BinaryExpression,
+    unary_expression: *UnaryExpression,
 
     pub fn init(allocator: Allocator) !*Self {
         return try allocator.create(Self);
     }
-    pub fn createAtom(allocator: Allocator, str: []const u8) !*Self {
-        const sexpr = try allocator.create(Self);
-        var buffer = std.ArrayList(u8).init(allocator);
-        errdefer buffer.deinit();
-        const writer = buffer.writer();
-        try writer.writeAll(str);
-        sexpr.* = Self{
-            .atom = buffer,
+    pub fn createInteger(allocator: Allocator, value: i64) !*Self {
+        const expr = try allocator.create(Self);
+        expr.* = Self{
+            .integer = value,
         };
-        return sexpr;
+        return expr;
     }
-    pub fn createList(allocator: Allocator, items: []const *SExpr) !*Self {
-        const sexpr = try allocator.create(Self);
-        var list = std.ArrayList(*SExpr).init(allocator);
-        errdefer list.deinit();
-        for (items) |item| {
-            try list.append(item);
-        }
-        sexpr.* = Self{
-            .list = list,
+    pub fn createUnaryExpression(allocator: Allocator, operator: []const u8, operand: *Expression) !*Self {
+        const expr = try allocator.create(Self);
+        expr.* = Self{
+            .unary_expression = try UnaryExpression.init(allocator, operator, operand),
         };
-        return sexpr;
+        return expr;
+    }
+    pub fn createBinaryExpression(allocator: Allocator, operator: []const u8, lhs: *Expression, rhs: *Expression) !*Self {
+        const expr = try allocator.create(Self);
+        expr.* = Self{
+            .binary_expression = try BinaryExpression.init(allocator, operator, lhs, rhs),
+        };
+        return expr;
     }
     pub fn deinit(self: *Self, allocator: Allocator) void {
         switch (self.*) {
-            SExpr.atom => |atom| {
-                atom.deinit();
+            .binary_expression => |bexpr| {
+                bexpr.deinit(allocator);
             },
-            SExpr.list => |list| {
-                for (list.?.items) |v| {
-                    v.deinit(allocator);
-                }
-                list.?.deinit();
+            .unary_expression => |uexpr| {
+                uexpr.deinit(allocator);
             },
+            else => {},
         }
         allocator.destroy(self);
     }
@@ -59,36 +54,88 @@ pub const SExpr = union(enum) {
         try self.render(&buffer);
         return buffer.toOwnedSlice();
     }
-    fn render(self: Self, buffer: *std.ArrayList(u8)) !void {
+    fn render(self: Self, buffer: *std.ArrayList(u8)) Error!void {
         const writer = buffer.writer();
         switch (self) {
-            SExpr.atom => |atom| try writer.writeAll(atom.items),
-            SExpr.list => |list| {
-                try writer.writeAll("(");
-                for (list.?.items, 0..) |v, index| {
-                    if (index > 0) {
-                        try writer.writeAll(" ");
-                    }
-                    try v.render(buffer);
-                }
-                try writer.writeAll(")");
-            },
+            .integer => |integer| try writer.print("{d}", .{integer}),
+            .binary_expression => |bexpr| try bexpr.render(buffer),
+            .unary_expression => |uexpr| try uexpr.render(buffer),
         }
     }
 };
 
-test "toString()" {
+pub const UnaryExpression = struct {
+    const Self = @This();
+
+    operator: []const u8,
+    operand: *Expression,
+
+    pub fn init(allocator: Allocator, operator: []const u8, operand: *Expression) !*Self {
+        const expr = try allocator.create(Self);
+        expr.* = Self{
+            .operator = operator,
+            .operand = operand,
+        };
+        return expr;
+    }
+    pub fn deinit(self: *Self, allocator: Allocator) void {
+        self.operand.deinit(allocator);
+        allocator.destroy(self);
+    }
+    pub fn render(self: Self, buffer: *std.ArrayList(u8)) Error!void {
+        const writer = buffer.writer();
+        try writer.print("({s} ", .{self.operator});
+        try self.operand.render(buffer);
+        try writer.writeAll(")");
+    }
+};
+
+pub const BinaryExpression = struct {
+    const Self = @This();
+
+    operator: []const u8,
+    lhs: *Expression,
+    rhs: *Expression,
+
+    pub fn init(allocator: Allocator, operator: []const u8, lhs: *Expression, rhs: *Expression) !*Self {
+        const expr = try allocator.create(Self);
+        expr.* = Self{
+            .operator = operator,
+            .lhs = lhs,
+            .rhs = rhs,
+        };
+        return expr;
+    }
+    pub fn deinit(self: *Self, allocator: Allocator) void {
+        self.lhs.deinit(allocator);
+        self.rhs.deinit(allocator);
+        allocator.destroy(self);
+    }
+    pub fn render(self: Self, buffer: *std.ArrayList(u8)) Error!void {
+        const writer = buffer.writer();
+        try writer.print("({s} ", .{self.operator});
+        try self.lhs.render(buffer);
+        try writer.writeAll(" ");
+        try self.rhs.render(buffer);
+        try writer.writeAll(")");
+    }
+};
+
+test "toString" {
     const alloc = std.testing.allocator;
-    const e = try SExpr.createList(alloc, &[_]*SExpr{
-        try SExpr.createAtom(alloc, "+"),
-        try SExpr.createAtom(alloc, "1"),
-        try SExpr.createList(alloc, &[_]*SExpr{
-            try SExpr.createAtom(alloc, "+"),
-            try SExpr.createAtom(alloc, "2"),
-            try SExpr.createAtom(alloc, "3"),
-        }),
-    });
+    const e = try Expression.createBinaryExpression(
+        alloc,
+        "+",
+        try Expression.createInteger(alloc, 1),
+        try Expression.createBinaryExpression(
+            alloc,
+            "+",
+            try Expression.createInteger(alloc, 2),
+            try Expression.createInteger(alloc, 3),
+        ),
+    );
     defer e.deinit(alloc);
+
     const str = try e.toString(alloc);
     defer alloc.free(str);
 

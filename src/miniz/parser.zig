@@ -1,10 +1,10 @@
 const std = @import("std");
-const SExpr = @import("ast.zig").SExpr;
+const Expression = @import("ast.zig").Expression;
 const Token = @import("token.zig").Token;
 const Lexer = @import("lexer.zig").Lexer;
 const Allocator = std.mem.Allocator;
 
-const Parser = struct {
+pub const Parser = struct {
     const Self = @This();
     allocator: Allocator,
     lexer: *Lexer,
@@ -25,22 +25,22 @@ const Parser = struct {
     pub fn deinit(self: *Self) void {
         _ = self;
     }
-    pub fn parseProgram(self: *Self) !*SExpr {
+    pub fn parseProgram(self: *Self) !*Expression {
         return self.parseExpr(0);
     }
-    fn parseExpr(self: *Self, precedence: u8) !*SExpr {
+    fn parseExpr(self: *Self, precedence: u8) !*Expression {
         var leading = try switch (self.currentToken.type) {
             .plus => blk: {
                 const pos_precedence: u8 = 51;
                 self.nextToken();
                 const following = try self.parseExpr(pos_precedence);
-                break :blk try SExpr.createList(self.allocator, &[_]*SExpr{ try SExpr.createAtom(self.allocator, "+"), following });
+                break :blk try Expression.createUnaryExpression(self.allocator, "+", following);
             },
             .minus => blk: {
                 const neg_precedence: u8 = 51;
                 self.nextToken();
                 const following = try self.parseExpr(neg_precedence);
-                break :blk try SExpr.createList(self.allocator, &[_]*SExpr{ try SExpr.createAtom(self.allocator, "-"), following });
+                break :blk try Expression.createUnaryExpression(self.allocator, "-", following);
             },
             .lparen => blk: {
                 self.nextToken();
@@ -50,7 +50,7 @@ const Parser = struct {
                 }
                 self.nextToken();
 
-                break :blk try SExpr.createList(self.allocator, &[_]*SExpr{ try SExpr.createAtom(self.allocator, "paren"), following });
+                break :blk try Expression.createUnaryExpression(self.allocator, "paren", following);
             },
             else => self.parseAtom(),
         };
@@ -76,38 +76,36 @@ const Parser = struct {
                     const plus_presedence: u8 = 51;
                     self.nextToken();
                     const following = try self.parseExpr(plus_presedence);
-                    leading = try SExpr.createList(self.allocator, &[_]*SExpr{ try SExpr.createAtom(self.allocator, "+"), leading, following });
+                    leading = try Expression.createBinaryExpression(self.allocator, "+", leading, following);
                 },
                 .minus => {
                     const minus_presedence: u8 = 51;
                     self.nextToken();
                     const following = try self.parseExpr(minus_presedence);
-                    leading = try SExpr.createList(self.allocator, &[_]*SExpr{ try SExpr.createAtom(self.allocator, "-"), leading, following });
+                    leading = try Expression.createBinaryExpression(self.allocator, "-", leading, following);
                 },
                 .asterisk => {
                     const asterisk_presedence: u8 = 81;
                     self.nextToken();
                     const following = try self.parseExpr(asterisk_presedence);
-                    leading = try SExpr.createList(self.allocator, &[_]*SExpr{ try SExpr.createAtom(self.allocator, "*"), leading, following });
+                    leading = try Expression.createBinaryExpression(self.allocator, "*", leading, following);
                 },
                 else => return leading,
             }
         }
     }
-    fn parseAtom(self: *Self) !*SExpr {
+    fn parseAtom(self: *Self) !*Expression {
         switch (self.currentToken.type) {
             .integer => {
-                const result = try SExpr.createAtom(self.allocator, self.currentToken.literal);
-                self.nextToken();
+                const value = try std.fmt.parseInt(i64, self.currentToken.literal, 10);
+                const result = try Expression.createInteger(self.allocator, value);
+                defer self.nextToken();
                 return result;
             },
             else => {
                 unreachable;
             },
         }
-    }
-    fn parseExprBp(self: *Self) SExpr {
-        _ = self;
     }
     fn nextToken(self: *Self) void {
         self.currentToken = self.peekToken;
