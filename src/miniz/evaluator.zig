@@ -99,15 +99,37 @@ pub fn evalExpression(allocator: std.mem.Allocator, expression: *Expression, env
     return 0;
 }
 
-test "eval: 1 + 2 * 3 + 4" {
+test "eval" {
     const alloc = std.testing.allocator;
-    const input = "1 + 2 * 3 + 4";
-    var lexer = Lexer.init(input);
-    var parser = Parser.init(alloc, &lexer);
-    defer parser.deinit();
-    const e = try parser.parseProgram();
-    defer e.deinit(alloc);
-    const result = try eval(alloc, e);
+    const tests = [_]struct {
+        input: []const u8,
+        expect: ?i64,
+    }{
+        .{ .input = "return 123 + 234;", .expect = null },
+        .{ .input = "1234;", .expect = 1234 },
+        .{ .input = "+1234;", .expect = 1234 },
+        .{ .input = "-1234;", .expect = -1234 },
+        .{ .input = "1234 + 5678;", .expect = 6912 },
+        .{ .input = "1234 + -5678;", .expect = -4444 },
+        .{ .input = "1234--5678;", .expect = 6912 },
+        .{ .input = "1 + 2 + 3;", .expect = 6 },
+        .{ .input = "1 + 2 * 3 + 4;", .expect = 11 },
+        .{ .input = "-100 %% 100 + - 10 % 10 * 20", .expect = 0 },
+        .{ .input = "mod = 998244353", .expect = 998244353 },
+        .{ .input = "foobar = 1 + 3 + 5", .expect = 9 },
+        .{ .input = "foobar + mod", .expect = 998244362 },
+    };
 
-    try std.testing.expect(result == 11);
+    var env = Env.init(alloc);
+    defer env.deinit();
+    for (tests) |t| {
+        var lexer = Lexer.init(t.input);
+        var parser = Parser.init(alloc, &lexer);
+        defer parser.deinit();
+        const program = try parser.parseProgram();
+        defer program.deinit(alloc);
+        const result = try eval(alloc, program, &env);
+
+        try std.testing.expect(result == t.expect);
+    }
 }
