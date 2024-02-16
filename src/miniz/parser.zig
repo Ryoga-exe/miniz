@@ -64,6 +64,7 @@ pub const Parser = struct {
                         .minus => 50,
                         .asterisk => 80,
                         .slash => 80,
+                        .assign => 21,
                         else => null,
                     };
                     if (next_precedence) |next| {
@@ -98,6 +99,16 @@ pub const Parser = struct {
                     const following = try self.parseExpr(slash_presedence);
                     leading = try Expression.createBinaryExpression(self.allocator, .slash, leading, following);
                 },
+                .assign => {
+                    const assign_presedence: u8 = 20;
+                    self.nextToken();
+                    const following = try self.parseExpr(assign_presedence);
+                    switch (leading.*) {
+                        .identifier => {},
+                        else => unreachable,
+                    }
+                    leading = try Expression.createBinaryExpression(self.allocator, .assign, leading, following);
+                },
                 else => return leading,
             }
         }
@@ -107,7 +118,12 @@ pub const Parser = struct {
             .integer => {
                 const value = try std.fmt.parseInt(i64, self.currentToken.literal, 10);
                 const result = try Expression.createInteger(self.allocator, value);
-                defer self.nextToken();
+                self.nextToken();
+                return result;
+            },
+            .identifier => {
+                const result = try Expression.createIdentifier(self.allocator, self.currentToken.literal);
+                self.nextToken();
                 return result;
             },
             else => {

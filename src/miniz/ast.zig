@@ -9,6 +9,7 @@ pub const Expression = union(enum) {
     const Self = @This();
 
     integer: i64,
+    identifier: []const u8,
     binary_expression: *BinaryExpression,
     unary_expression: *UnaryExpression,
 
@@ -19,6 +20,13 @@ pub const Expression = union(enum) {
         const expr = try allocator.create(Self);
         expr.* = Self{
             .integer = value,
+        };
+        return expr;
+    }
+    pub fn createIdentifier(allocator: Allocator, identifier: []const u8) !*Self {
+        const expr = try allocator.create(Self);
+        expr.* = Self{
+            .identifier = identifier,
         };
         return expr;
     }
@@ -59,6 +67,7 @@ pub const Expression = union(enum) {
         const writer = buffer.writer();
         switch (self) {
             .integer => |integer| try writer.print("{d}", .{integer}),
+            .identifier => |identifier| try writer.writeAll(identifier),
             .binary_expression => |bexpr| try bexpr.render(buffer),
             .unary_expression => |uexpr| try uexpr.render(buffer),
         }

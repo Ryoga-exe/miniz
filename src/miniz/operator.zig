@@ -8,6 +8,7 @@ pub const Operator = enum {
     minus,
     asterisk,
     slash,
+    assign,
     paren,
     none,
 
@@ -24,6 +25,7 @@ pub const Operator = enum {
             .plus => .{ 50, 51 },
             .minus => .{ 50, 51 },
             .asterisk => .{ 80, 81 },
+            .assign => .{ 21, 20 },
             else => null,
         };
     }
@@ -46,6 +48,7 @@ pub const Operator = enum {
             .{ "/", .slash },
             .{ "(", .paren },
             .{ ")", .paren },
+            .{ "==", .assign },
         });
         if (map.get(operator)) |ope| {
             return ope;
@@ -59,6 +62,7 @@ pub const Operator = enum {
             .asterisk => "*",
             .slash => "/",
             .paren => "paren",
+            .assign => "==",
             else => "",
         };
     }

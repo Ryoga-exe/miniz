@@ -33,6 +33,10 @@ pub fn eval(allocator: std.mem.Allocator, program: *Expression) !i64 {
         .integer => |integer| {
             return integer;
         },
+        .identifier => |identifier| {
+            _ = identifier;
+            return 0;
+        },
         .unary_expression => |uexpr| {
             switch (uexpr.operator) {
                 .plus => return try eval(allocator, uexpr.operand),
@@ -47,6 +51,7 @@ pub fn eval(allocator: std.mem.Allocator, program: *Expression) !i64 {
                 .minus => return try eval(allocator, bexpr.lhs) - try eval(allocator, bexpr.rhs),
                 .asterisk => return try eval(allocator, bexpr.lhs) * try eval(allocator, bexpr.rhs),
                 .slash => return @divFloor(try eval(allocator, bexpr.lhs), try eval(allocator, bexpr.rhs)),
+                .assign => return try eval(allocator, bexpr.rhs),
                 else => unreachable,
             }
         },
