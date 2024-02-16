@@ -46,6 +46,7 @@ pub fn eval(allocator: std.mem.Allocator, program: *Expression) !i64 {
                 .plus => return try eval(allocator, bexpr.lhs) + try eval(allocator, bexpr.rhs),
                 .minus => return try eval(allocator, bexpr.lhs) - try eval(allocator, bexpr.rhs),
                 .asterisk => return try eval(allocator, bexpr.lhs) * try eval(allocator, bexpr.rhs),
+                .slash => return @divFloor(try eval(allocator, bexpr.lhs), try eval(allocator, bexpr.rhs)),
                 else => unreachable,
             }
         },

@@ -63,6 +63,7 @@ pub const Parser = struct {
                         .plus => 50,
                         .minus => 50,
                         .asterisk => 80,
+                        .slash => 80,
                         else => null,
                     };
                     if (next_precedence) |next| {
@@ -90,6 +91,12 @@ pub const Parser = struct {
                     self.nextToken();
                     const following = try self.parseExpr(asterisk_presedence);
                     leading = try Expression.createBinaryExpression(self.allocator, .asterisk, leading, following);
+                },
+                .slash => {
+                    const slash_presedence: u8 = 81;
+                    self.nextToken();
+                    const following = try self.parseExpr(slash_presedence);
+                    leading = try Expression.createBinaryExpression(self.allocator, .slash, leading, following);
                 },
                 else => return leading,
             }
