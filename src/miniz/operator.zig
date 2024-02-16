@@ -109,7 +109,7 @@ pub const Operator = enum {
             .eq => "==",
             .not_eq => "!=",
             .paren => "paren",
-            .assign => "==",
+            .assign => "=",
             .block => "block",
             else => "",
         };

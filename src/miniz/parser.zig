@@ -159,80 +159,29 @@ fn ParseTesting(allocator: Allocator, input: []const u8) ![]const u8 {
     return str;
 }
 
-test "parse: return 123 + 234;" {
+test "parseProgram" {
     const alloc = std.testing.allocator;
-    const result = try ParseTesting(alloc, "return 123 + 234;");
-    defer alloc.free(result);
+    const tests = [_]struct {
+        input: []const u8,
+        expect: []const u8,
+    }{
+        .{ .input = "return 123 + 234;", .expect = "(return (+ 123 234))" },
+        .{ .input = "1234;", .expect = "(expr 1234)" },
+        .{ .input = "+1234;", .expect = "(expr (+ 1234))" },
+        .{ .input = "-1234;", .expect = "(expr (- 1234))" },
+        .{ .input = "1234 + 5678;", .expect = "(expr (+ 1234 5678))" },
+        .{ .input = "1234 + -5678;", .expect = "(expr (+ 1234 (- 5678)))" },
+        .{ .input = "1234--5678;", .expect = "(expr (- 1234 (- 5678)))" },
+        .{ .input = "1 + 2 + 3;", .expect = "(expr (+ (+ 1 2) 3))" },
+        .{ .input = "1 + 2 * 3 + 4;", .expect = "(expr (+ (+ 1 (* 2 3)) 4))" },
+        .{ .input = "-100 %% 100 + - 10 % 10 * 20", .expect = "(expr (+ (%% (- 100) 100) (* (% (- 10) 10) 20)))" },
+        .{ .input = "mod = 998244353", .expect = "(expr (= mod 998244353))" },
+        .{ .input = "foobar = 1 + 3 + 5", .expect = "(expr (= foobar (+ (+ 1 3) 5)))" },
+    };
+    for (tests) |t| {
+        const result = try ParseTesting(alloc, t.input);
+        defer alloc.free(result);
 
-    try std.testing.expectEqualSlices(u8, "(return (+ 123 234))", result);
-}
-
-test "parse: 1234;" {
-    const alloc = std.testing.allocator;
-    const result = try ParseTesting(alloc, "1234");
-    defer alloc.free(result);
-    try std.testing.expectEqualSlices(u8, "(expr 1234)", result);
-}
-
-test "parse: +1234;" {
-    const alloc = std.testing.allocator;
-    const result = try ParseTesting(alloc, "+1234");
-    defer alloc.free(result);
-    try std.testing.expectEqualSlices(u8, "(expr (+ 1234))", result);
-}
-
-test "parse: -1234;" {
-    const alloc = std.testing.allocator;
-    const result = try ParseTesting(alloc, "-1234");
-    defer alloc.free(result);
-    try std.testing.expectEqualSlices(u8, "(expr (- 1234))", result);
-}
-
-test "parse (-1234);" {
-    const alloc = std.testing.allocator;
-    const result = try ParseTesting(alloc, "(-1234)");
-    defer alloc.free(result);
-    try std.testing.expectEqualSlices(u8, "(expr (paren (- 1234)))", result);
-}
-
-test "parse: 1234 + 5678;" {
-    const alloc = std.testing.allocator;
-    const result = try ParseTesting(alloc, "1234 + 5678");
-    defer alloc.free(result);
-    try std.testing.expectEqualSlices(u8, "(expr (+ 1234 5678))", result);
-}
-
-test "parse: 1234 + -5678;" {
-    const alloc = std.testing.allocator;
-    const result = try ParseTesting(alloc, "1234 + -5678");
-    defer alloc.free(result);
-    try std.testing.expectEqualSlices(u8, "(expr (+ 1234 (- 5678)))", result);
-}
-
-test "parse: 1234--5678;" {
-    const alloc = std.testing.allocator;
-    const result = try ParseTesting(alloc, "1234--5678");
-    defer alloc.free(result);
-    try std.testing.expectEqualSlices(u8, "(expr (- 1234 (- 5678)))", result);
-}
-
-test "parse: 1 + 2 + 3;" {
-    const alloc = std.testing.allocator;
-    const result = try ParseTesting(alloc, "1 + 2 + 3");
-    defer alloc.free(result);
-    try std.testing.expectEqualSlices(u8, "(expr (+ (+ 1 2) 3))", result);
-}
-
-test "parse: 1 + 2 * 3 + 4;" {
-    const alloc = std.testing.allocator;
-    const result = try ParseTesting(alloc, "1 + 2 * 3 + 4");
-    defer alloc.free(result);
-    try std.testing.expectEqualSlices(u8, "(expr (+ (+ 1 (* 2 3)) 4))", result);
-}
-
-test "parse: -100 %% 100 + - 10 % 10 * 20;" {
-    const alloc = std.testing.allocator;
-    const result = try ParseTesting(alloc, "-100 %% 100 + - 10 % 10 * 20");
-    defer alloc.free(result);
-    try std.testing.expectEqualSlices(u8, "(expr (+ (%% (- 100) 100) (* (% (- 10) 10) 20)))", result);
+        try std.testing.expectEqualSlices(u8, t.expect, result);
+    }
 }
