@@ -186,3 +186,10 @@ test "parse: 1 + 2 * 3 + 4" {
     defer alloc.free(result);
     try std.testing.expectEqualSlices(u8, "(+ (+ 1 (* 2 3)) 4)", result);
 }
+
+test "parse: -100 %% 100 + - 10 % 10 * 20" {
+    const alloc = std.testing.allocator;
+    const result = try ParseTesting(alloc, "-100 %% 100 + - 10 % 10 * 20");
+    defer alloc.free(result);
+    try std.testing.expectEqualSlices(u8, "(+ (%% (- 100) 100) (* (% (- 10) 10) 20))", result);
+}
