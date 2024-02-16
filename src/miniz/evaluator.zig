@@ -1,9 +1,10 @@
 const std = @import("std");
 const Lexer = @import("lexer.zig").Lexer;
 const Parser = @import("parser.zig").Parser;
-const Program = @import("ast.zig").Program;
-const Statement = @import("ast.zig").Statement;
-const Expression = @import("ast.zig").Expression;
+const ast = @import("ast.zig");
+const Program = ast.Program;
+const Statement = ast.Statement;
+const Expression = ast.Expression;
 
 const Error = error{OutOfMemory};
 
@@ -18,12 +19,13 @@ pub const Env = struct {
 
     allocator: std.mem.Allocator,
     map: std.StringHashMap(i64),
-    // map: std.StringArrayHashMap(*Expression),
+    function_map: std.StringHashMap(*ast.FunctionStatement),
 
     pub fn init(allocator: std.mem.Allocator) Self {
         return Self{
             .allocator = allocator,
             .map = std.StringHashMap(i64).init(allocator),
+            .function_map = std.StringHashMap(*ast.FunctionStatement).init(allocator),
         };
     }
     pub fn deinit(self: *Self) void {
@@ -31,6 +33,9 @@ pub const Env = struct {
     }
     pub fn set(self: *Self, identifier: []const u8, expression: i64) !void {
         try self.map.put(identifier, expression);
+    }
+    pub fn setFunc(self: *Self, name: []const u8, statement: *ast.FunctionStatement) !void {
+        try self.function_map.put(name, statement);
     }
     pub fn remove(self: *Self, identifier: []const u8) !void {
         self.map.remove(identifier);
@@ -66,6 +71,10 @@ fn evalStatement(allocator: std.mem.Allocator, statement: *Statement, env: *Env)
                 ret = try evalStatement(allocator, stmt, env);
             }
             return ret;
+        },
+        .function_statement => |fs| {
+            try env.setFunc(fs.name, fs);
+            return 0;
         },
     };
 }

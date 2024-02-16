@@ -41,6 +41,7 @@ pub const Parser = struct {
         return switch (self.currentToken.type) {
             .keyword_return => self.parseReturnStatement(),
             .lbrace => self.parseBlockStatement(),
+            .keyword_function => self.parseFunctionStatement(),
             else => self.parseExpressionStatement(),
         };
     }
@@ -65,6 +66,43 @@ pub const Parser = struct {
         while (self.currentToken.type != .rbrace) {
             const statement = try self.parseStatement();
             try stmt.block_statement.statements.append(statement);
+            self.nextToken();
+        }
+        self.nextToken();
+        return stmt;
+    }
+    fn parseFunctionStatement(self: *Self) Error!*ast.Statement {
+        self.nextToken();
+        if (self.currentToken.type != .identifier) {
+            unreachable; // expected identifier
+        }
+        var stmt = try ast.Statement.createFunctionStatement(self.allocator, self.currentToken.literal);
+        self.nextToken();
+        if (self.currentToken.type != .lparen) {
+            unreachable; // expected '('
+        }
+        self.nextToken();
+        while (self.currentToken.type != .rparen) {
+            if (self.currentToken.type != .identifier) {
+                unreachable;
+            }
+            try stmt.function_statement.params.append(self.currentToken.literal);
+            self.nextToken();
+            if (self.currentToken.type != .rparen) {
+                if (self.currentToken.type != .comma) {
+                    unreachable;
+                }
+                self.nextToken();
+            }
+        }
+        self.nextToken();
+        if (self.currentToken.type != .lbrace) {
+            unreachable;
+        }
+        self.nextToken();
+        while (self.currentToken.type != .rbrace) {
+            const statement = try self.parseStatement();
+            try stmt.function_statement.block.statements.append(statement);
             self.nextToken();
         }
         self.nextToken();
@@ -214,6 +252,7 @@ test "parseProgram" {
         .{ .input = "if (x < y) 2; else 3;", .expect = "(expr (if (< x y) (expr 2) (expr 3)))" },
         .{ .input = "if (x + 1 < y + 4) 55;", .expect = "(expr (if (< (+ x 1) (+ y 4)) (expr 55)))" },
         .{ .input = "{ 1 + 2; }", .expect = "(block (expr (+ 1 2)))" },
+        .{ .input = "function add(x, y) { return x + y; }", .expect = "(function add (params x y) (block (return (+ x y))))" },
     };
     for (tests) |t| {
         const result = try ParseTesting(alloc, t.input);

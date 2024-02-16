@@ -48,6 +48,7 @@ pub const Statement = union(enum) {
     expression_statement: *ExpressionStatement,
     return_statement: *ReturnStatement,
     block_statement: *BlockStatement,
+    function_statement: *FunctionStatement,
 
     pub fn init(allocator: Allocator) !*Self {
         return try allocator.create(Self);
@@ -73,11 +74,19 @@ pub const Statement = union(enum) {
         };
         return stmt;
     }
+    pub fn createFunctionStatement(allocator: Allocator, name: []const u8) !*Self {
+        const stmt = try allocator.create(Self);
+        stmt.* = Self{
+            .function_statement = try FunctionStatement.init(allocator, name),
+        };
+        return stmt;
+    }
     pub fn deinit(self: *Self, allocator: Allocator) void {
         switch (self.*) {
             .expression_statement => |es| es.deinit(allocator),
             .return_statement => |rs| rs.deinit(allocator),
             .block_statement => |bs| bs.deinit(allocator),
+            .function_statement => |fs| fs.deinit(allocator),
         }
         allocator.destroy(self);
     }
@@ -86,6 +95,7 @@ pub const Statement = union(enum) {
             .expression_statement => |es| try es.render(buffer),
             .return_statement => |rs| try rs.render(buffer),
             .block_statement => |bs| try bs.render(buffer),
+            .function_statement => |fs| try fs.render(buffer),
         }
     }
 };
@@ -166,6 +176,40 @@ const BlockStatement = struct {
             }
             try statement.render(buffer);
         }
+        try writer.writeAll(")");
+    }
+};
+
+pub const FunctionStatement = struct {
+    const Self = @This();
+
+    name: []const u8,
+    params: std.ArrayList([]const u8),
+    block: *BlockStatement,
+
+    pub fn init(allocator: Allocator, name: []const u8) !*Self {
+        const stmt = try allocator.create(Self);
+        stmt.* = Self{
+            .name = name,
+            .params = std.ArrayList([]const u8).init(allocator),
+            .block = try BlockStatement.init(allocator),
+        };
+        return stmt;
+    }
+    pub fn deinit(self: *Self, allocator: Allocator) void {
+        self.params.deinit();
+        self.block.deinit(allocator);
+        allocator.destroy(self);
+    }
+    pub fn render(self: Self, buffer: *std.ArrayList(u8)) Error!void {
+        const writer = buffer.writer();
+        try writer.print("(function {s} ", .{self.name});
+        try writer.writeAll("(params");
+        for (self.params.items) |param| {
+            try writer.print(" {s}", .{param});
+        }
+        try writer.writeAll(") ");
+        try self.block.render(buffer);
         try writer.writeAll(")");
     }
 };
