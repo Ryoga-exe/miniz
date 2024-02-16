@@ -39,12 +39,16 @@ pub fn start(allocator: std.mem.Allocator) !void {
             var lexer = Lexer.init(input);
             var parser = Parser.init(allocator, &lexer);
             defer parser.deinit();
-            const e = try parser.parseProgram();
-            defer e.deinit(allocator);
+            const program = try parser.parseProgram();
+            defer program.deinit(allocator);
 
-            const result = try evaluator.eval(allocator, e, &env);
+            const result = try evaluator.eval(allocator, program, &env);
 
-            try stdout.print("{d}\n\n", .{result});
+            if (result) |value| {
+                try stdout.print("{d}\n\n", .{value});
+            } else {
+                try stdout.print("{s}\n\n", .{"null"});
+            }
         }
     }
 }

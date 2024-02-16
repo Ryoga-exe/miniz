@@ -5,6 +5,129 @@ const Allocator = std.mem.Allocator;
 
 const Error = error{OutOfMemory};
 
+pub const Program = struct {
+    const Self = @This();
+
+    statements: std.ArrayList(*Statement),
+
+    pub fn init(allocator: Allocator) !*Self {
+        const program = try allocator.create(Self);
+        program.* = Self{
+            .statements = std.ArrayList(*Statement).init(allocator),
+        };
+        return program;
+    }
+    pub fn deinit(self: *Self, allocator: Allocator) void {
+        for (self.statements.items) |statement| {
+            statement.deinit(allocator);
+        }
+        self.statements.deinit();
+        allocator.destroy(self);
+    }
+    pub fn toString(self: Self, allocator: Allocator) ![]u8 {
+        var buffer = std.ArrayList(u8).init(allocator);
+        defer buffer.deinit();
+
+        try self.render(&buffer);
+        return buffer.toOwnedSlice();
+    }
+    fn render(self: Self, buffer: *std.ArrayList(u8)) Error!void {
+        const writer = buffer.writer();
+        for (self.statements.items, 0..) |statement, index| {
+            if (index > 0) {
+                try writer.writeAll("\n");
+            }
+            try statement.render(buffer);
+        }
+    }
+};
+
+pub const Statement = union(enum) {
+    const Self = @This();
+
+    expression_statement: *ExpressionStatement,
+    return_statement: *ReturnStatement,
+
+    pub fn init(allocator: Allocator) !*Self {
+        return try allocator.create(Self);
+    }
+    pub fn createExpressionStatement(allocator: Allocator, expression: *Expression) !*Self {
+        const stmt = try allocator.create(Self);
+        stmt.* = Self{
+            .expression_statement = try ExpressionStatement.init(allocator, expression),
+        };
+        return stmt;
+    }
+    pub fn createReturnStatement(allocator: Allocator, expression: *Expression) !*Self {
+        const stmt = try allocator.create(Self);
+        stmt.* = Self{
+            .return_statement = try ReturnStatement.init(allocator, expression),
+        };
+        return stmt;
+    }
+    pub fn deinit(self: *Self, allocator: Allocator) void {
+        switch (self.*) {
+            .expression_statement => |es| es.deinit(allocator),
+            .return_statement => |rs| rs.deinit(allocator),
+        }
+        allocator.destroy(self);
+    }
+    pub fn render(self: Self, buffer: *std.ArrayList(u8)) Error!void {
+        switch (self) {
+            .expression_statement => |es| try es.render(buffer),
+            .return_statement => |rs| try rs.render(buffer),
+        }
+    }
+};
+
+const ExpressionStatement = struct {
+    const Self = @This();
+
+    expression: *Expression,
+
+    pub fn init(allocator: Allocator, expression: *Expression) !*Self {
+        const stmt = try allocator.create(Self);
+        stmt.* = Self{
+            .expression = expression,
+        };
+        return stmt;
+    }
+    pub fn deinit(self: *Self, allocator: Allocator) void {
+        self.expression.deinit(allocator);
+        allocator.destroy(self);
+    }
+    pub fn render(self: Self, buffer: *std.ArrayList(u8)) Error!void {
+        const writer = buffer.writer();
+        try writer.writeAll("(expr ");
+        try self.expression.render(buffer);
+        try writer.writeAll(")");
+    }
+};
+
+const ReturnStatement = struct {
+    const Self = @This();
+
+    expression: *Expression,
+
+    pub fn init(allocator: Allocator, expression: *Expression) !*Self {
+        const stmt = try allocator.create(Self);
+        stmt.* = Self{
+            .expression = expression,
+        };
+        return stmt;
+    }
+    pub fn deinit(self: *Self, allocator: Allocator) void {
+        self.expression.deinit(allocator);
+        allocator.destroy(self);
+    }
+    pub fn render(self: Self, buffer: *std.ArrayList(u8)) Error!void {
+        const writer = buffer.writer();
+        try writer.writeAll("(return ");
+        try self.expression.render(buffer);
+        try writer.writeAll(")");
+    }
+};
+
 pub const Expression = union(enum) {
     const Self = @This();
 
@@ -74,7 +197,7 @@ pub const Expression = union(enum) {
     }
 };
 
-pub const UnaryExpression = struct {
+const UnaryExpression = struct {
     const Self = @This();
 
     operator: Operator,
@@ -100,7 +223,7 @@ pub const UnaryExpression = struct {
     }
 };
 
-pub const BinaryExpression = struct {
+const BinaryExpression = struct {
     const Self = @This();
 
     operator: Operator,
