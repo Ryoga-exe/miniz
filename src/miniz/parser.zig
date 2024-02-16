@@ -47,7 +47,7 @@ pub const Parser = struct {
                 self.nextToken();
                 const following = try self.parseExpr(0);
                 if (self.currentToken.type != .rparen) {
-                    unreachable;
+                    unreachable; // expected ')'
                 }
                 self.nextToken();
 
@@ -105,7 +105,7 @@ pub const Parser = struct {
                     const following = try self.parseExpr(assign_presedence);
                     switch (leading.*) {
                         .identifier => {},
-                        else => unreachable,
+                        else => unreachable, // expected identifier
                     }
                     leading = try Expression.createBinaryExpression(self.allocator, .assign, leading, following);
                 },
@@ -127,7 +127,7 @@ pub const Parser = struct {
                 return result;
             },
             else => {
-                unreachable;
+                unreachable; // expected literal or identifier
             },
         }
     }
