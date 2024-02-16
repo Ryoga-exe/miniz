@@ -50,6 +50,10 @@ pub const Parser = struct {
                 .slash => leading = try self.parseInfixOnce(Operator.slash, leading),
                 .mod => leading = try self.parseInfixOnce(Operator.mod, leading),
                 .rem => leading = try self.parseInfixOnce(Operator.rem, leading),
+                .lt => leading = try self.parseInfixOnce(Operator.lt, leading),
+                .gt => leading = try self.parseInfixOnce(Operator.gt, leading),
+                .eq => leading = try self.parseInfixOnce(Operator.eq, leading),
+                .not_eq => leading = try self.parseInfixOnce(Operator.not_eq, leading),
                 .assign => {
                     switch (leading.*) {
                         .identifier => {},
