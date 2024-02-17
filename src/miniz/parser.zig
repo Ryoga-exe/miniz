@@ -42,20 +42,21 @@ pub const Parser = struct {
             .keyword_return => self.parseReturnStatement(),
             .lbrace => self.parseBlockStatement(),
             .keyword_function => self.parseFunctionStatement(),
+            .keyword_while => self.parseWhileStatement(),
             else => self.parseExpressionStatement(),
         };
     }
     fn parseReturnStatement(self: *Self) Error!*ast.Statement {
         self.nextToken();
         const expr = try self.parseExpr(0);
-        if (self.peekToken.type == .semicolon) {
+        if (self.currentToken.type != .semicolon) {
             self.nextToken();
         }
         return ast.Statement.createReturnStatement(self.allocator, expr);
     }
     fn parseExpressionStatement(self: *Self) Error!*ast.Statement {
         const expr = try self.parseExpr(0);
-        if (self.peekToken.type == .semicolon) {
+        if (self.currentToken.type != .semicolon) {
             self.nextToken();
         }
         return ast.Statement.createExpressionStatement(self.allocator, expr);
@@ -107,6 +108,22 @@ pub const Parser = struct {
         }
         self.nextToken();
         return stmt;
+    }
+    fn parseWhileStatement(self: *Self) Error!*ast.Statement {
+        self.nextToken();
+        if (self.currentToken.type != .lparen) {
+            unreachable; // expected '(' after if, found {self.currentToken.type}
+        }
+        self.nextToken();
+        const condition = try self.parseExpr(0);
+        if (self.currentToken.type != .rparen) {
+            unreachable; // expected ')', found {self.currentToken.type}
+        }
+        self.nextToken();
+
+        const body = try self.parseStatement();
+
+        return try ast.Statement.createWhileStatement(self.allocator, condition, body);
     }
     fn parseExpr(self: *Self, precedence: u8) Error!*Expression {
         var leading = try self.parsePrefix();
@@ -273,6 +290,7 @@ test "parseProgram" {
         .{ .input = "{ 1 + 2; }", .expect = "(block (expr (+ 1 2)))" },
         .{ .input = "function add(x, y) { return x + y; }", .expect = "(function add (params x y) (block (return (+ x y))))" },
         .{ .input = "foobar(12, 1 + 2);", .expect = "(expr (call foobar (params 12 (+ 1 2))))" },
+        .{ .input = "while(i < 10) { a = a + i; i = i + 1; }", .expect = "(while (< i 10) (block (expr (= a (+ a i)));(expr (= i (+ i 1)))))" },
     };
     for (tests) |t| {
         const result = try ParseTesting(alloc, t.input);

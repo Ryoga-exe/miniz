@@ -49,6 +49,7 @@ pub const Statement = union(enum) {
     return_statement: *ReturnStatement,
     block_statement: *BlockStatement,
     function_statement: *FunctionStatement,
+    while_statement: *WhileStatement,
 
     pub fn init(allocator: Allocator) !*Self {
         return try allocator.create(Self);
@@ -81,12 +82,20 @@ pub const Statement = union(enum) {
         };
         return stmt;
     }
+    pub fn createWhileStatement(allocator: Allocator, condition: *Expression, body: *Statement) !*Self {
+        const stmt = try allocator.create(Self);
+        stmt.* = Self{
+            .while_statement = try WhileStatement.init(allocator, condition, body),
+        };
+        return stmt;
+    }
     pub fn deinit(self: *Self, allocator: Allocator) void {
         switch (self.*) {
             .expression_statement => |es| es.deinit(allocator),
             .return_statement => |rs| rs.deinit(allocator),
             .block_statement => |bs| bs.deinit(allocator),
             .function_statement => |fs| fs.deinit(allocator),
+            .while_statement => |ws| ws.deinit(allocator),
         }
         allocator.destroy(self);
     }
@@ -96,6 +105,7 @@ pub const Statement = union(enum) {
             .return_statement => |rs| try rs.render(buffer),
             .block_statement => |bs| try bs.render(buffer),
             .function_statement => |fs| try fs.render(buffer),
+            .while_statement => |ws| try ws.render(buffer),
         }
     }
 };
@@ -186,6 +196,7 @@ pub const FunctionStatement = struct {
     name: []const u8,
     params: std.ArrayList([]const u8),
     block: *BlockStatement,
+    final: bool,
 
     pub fn init(allocator: Allocator, name: []const u8) !*Self {
         const stmt = try allocator.create(Self);
@@ -193,6 +204,7 @@ pub const FunctionStatement = struct {
             .name = name,
             .params = std.ArrayList([]const u8).init(allocator),
             .block = try BlockStatement.init(allocator),
+            .final = true,
         };
         return stmt;
     }
@@ -201,7 +213,13 @@ pub const FunctionStatement = struct {
             allocator.free(param);
         }
         self.params.deinit();
-        self.block.deinit(allocator);
+        if (self.final) {
+            self.block.deinit(allocator);
+        } else {
+            self.block.statements.deinit();
+            allocator.destroy(self.block);
+        }
+
         allocator.destroy(self);
     }
     pub fn addParam(self: *Self, allocator: Allocator, param: []const u8) !void {
@@ -217,6 +235,35 @@ pub const FunctionStatement = struct {
         }
         try writer.writeAll(") ");
         try self.block.render(buffer);
+        try writer.writeAll(")");
+    }
+};
+
+const WhileStatement = struct {
+    const Self = @This();
+
+    condition: *Expression,
+    body: *Statement,
+
+    pub fn init(allocator: Allocator, condition: *Expression, body: *Statement) !*Self {
+        const stmt = try allocator.create(Self);
+        stmt.* = Self{
+            .condition = condition,
+            .body = body,
+        };
+        return stmt;
+    }
+    pub fn deinit(self: *Self, allocator: Allocator) void {
+        self.condition.deinit(allocator);
+        self.body.deinit(allocator);
+        allocator.destroy(self);
+    }
+    pub fn render(self: Self, buffer: *std.ArrayList(u8)) Error!void {
+        const writer = buffer.writer();
+        try writer.writeAll("(while ");
+        try self.condition.render(buffer);
+        try writer.writeAll(" ");
+        try self.body.render(buffer);
         try writer.writeAll(")");
     }
 };

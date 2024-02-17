@@ -20,31 +20,38 @@ pub const Env = struct {
     allocator: std.mem.Allocator,
     map: std.StringHashMap(i64),
     function_map: std.StringHashMap(*ast.FunctionStatement),
+    keys: std.ArrayList([]const u8),
 
     pub fn init(allocator: std.mem.Allocator) Self {
         return Self{
             .allocator = allocator,
             .map = std.StringHashMap(i64).init(allocator),
             .function_map = std.StringHashMap(*ast.FunctionStatement).init(allocator),
+            .keys = std.ArrayList([]const u8).init(allocator),
         };
     }
     pub fn deinit(self: *Self) void {
-        var it = self.map.keyIterator();
-        while (it.next()) |key| {
-            self.allocator.free(key.*);
-        }
-        var funcs = self.function_map.iterator();
-        while (funcs.next()) |entry| {
-            self.allocator.free(entry.key_ptr.*);
-            entry.value_ptr.*.deinit(self.allocator);
+        var funcs = self.function_map.valueIterator();
+        while (funcs.next()) |value| {
+            value.*.deinit(self.allocator);
         }
         self.map.deinit();
         self.function_map.deinit();
+
+        for (self.keys.items) |key| {
+            self.allocator.free(key);
+        }
+        self.keys.deinit();
     }
     pub fn set(self: *Self, identifier: []const u8, expression: i64) !void {
-        try self.map.put(try self.allocator.dupe(u8, identifier), expression);
+        const own = try self.allocator.dupe(u8, identifier);
+        try self.keys.append(own);
+        try self.map.put(own, expression);
     }
     pub fn setFunc(self: *Self, name: []const u8, statement: *ast.FunctionStatement) !void {
+        const own = try self.allocator.dupe(u8, name);
+        try self.keys.append(own);
+
         const stmt = try ast.FunctionStatement.init(self.allocator, name);
         for (statement.params.items) |param| {
             try stmt.addParam(self.allocator, param);
@@ -52,7 +59,8 @@ pub const Env = struct {
         for (statement.block.statements.items) |block| {
             try stmt.block.statements.append(block);
         }
-        try self.function_map.put(try self.allocator.dupe(u8, name), stmt);
+        stmt.final = false;
+        try self.function_map.put(own, stmt);
     }
     pub fn remove(self: *Self, identifier: []const u8) bool {
         return self.map.remove(identifier);
@@ -98,6 +106,12 @@ fn evalStatement(allocator: std.mem.Allocator, statement: *Statement, env: *Env)
         },
         .function_statement => |fs| {
             try env.setFunc(fs.name, fs);
+            return 0;
+        },
+        .while_statement => |ws| {
+            while (try evalExpression(allocator, ws.condition, env) != 0) {
+                _ = try evalStatement(allocator, ws.body, env);
+            }
             return 0;
         },
     };
@@ -194,8 +208,9 @@ test "eval" {
         .{ .input = "foobar = 1 + 3 + 5", .expect = 9 },
         .{ .input = "foobar + mod", .expect = 998244362 },
         .{ .input = "if (foobar < mod) 5; else 10;", .expect = 5 },
-        // .{ .input = "function add(x, y) { return x + y; }", .expect = 0 },
-        // .{ .input = "add(5, 5);", .expect = 10 },
+        .{ .input = "a = 0; i = 0; while(i < 10) { a = a + i; i = i + 1; }; a;", .expect = 45 },
+        .{ .input = "function add(x, y) { return x + y; }", .expect = 0 },
+        .{ .input = "add(5, 5);", .expect = 10 },
     };
 
     var env = Env.init(alloc);
