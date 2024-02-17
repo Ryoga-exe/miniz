@@ -1,0 +1,5 @@
+foo = 20;
+bar = 30;
+
+if (foo < bar) 5000;
+else 600;
