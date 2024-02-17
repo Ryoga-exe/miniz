@@ -197,9 +197,16 @@ pub const FunctionStatement = struct {
         return stmt;
     }
     pub fn deinit(self: *Self, allocator: Allocator) void {
+        for (self.params.items) |param| {
+            allocator.free(param);
+        }
         self.params.deinit();
         self.block.deinit(allocator);
         allocator.destroy(self);
+    }
+    pub fn addParam(self: *Self, allocator: Allocator, param: []const u8) !void {
+        const owned = try allocator.dupe(u8, param);
+        try self.params.append(owned);
     }
     pub fn render(self: Self, buffer: *std.ArrayList(u8)) Error!void {
         const writer = buffer.writer();
@@ -222,6 +229,7 @@ pub const Expression = union(enum) {
     binary_expression: *BinaryExpression,
     unary_expression: *UnaryExpression,
     if_expression: *IfExpression,
+    call_expression: *CallExpression,
 
     pub fn init(allocator: Allocator) !*Self {
         return try allocator.create(Self);
@@ -261,19 +269,21 @@ pub const Expression = union(enum) {
         };
         return expr;
     }
+    pub fn createCallExpression(allocator: Allocator, name: []const u8) !*Self {
+        const expr = try allocator.create(Self);
+        expr.* = Self{
+            .call_expression = try CallExpression.init(allocator, name),
+        };
+        return expr;
+    }
     pub fn deinit(self: *Self, allocator: Allocator) void {
         switch (self.*) {
             .integer => {},
             .identifier => {},
-            .binary_expression => |bexpr| {
-                bexpr.deinit(allocator);
-            },
-            .unary_expression => |uexpr| {
-                uexpr.deinit(allocator);
-            },
-            .if_expression => |ifexpr| {
-                ifexpr.deinit(allocator);
-            },
+            .binary_expression => |bexpr| bexpr.deinit(allocator),
+            .unary_expression => |uexpr| uexpr.deinit(allocator),
+            .if_expression => |ifexpr| ifexpr.deinit(allocator),
+            .call_expression => |callexpr| callexpr.deinit(allocator),
         }
         allocator.destroy(self);
     }
@@ -292,6 +302,7 @@ pub const Expression = union(enum) {
             .binary_expression => |bexpr| try bexpr.render(buffer),
             .unary_expression => |uexpr| try uexpr.render(buffer),
             .if_expression => |ifexpr| try ifexpr.render(buffer),
+            .call_expression => |callexpr| try callexpr.render(buffer),
         }
     }
 };
@@ -387,6 +398,40 @@ const IfExpression = struct {
             try writer.writeAll(" ");
             try alternative.render(buffer);
         }
+        try writer.writeAll(")");
+    }
+};
+
+const CallExpression = struct {
+    const Self = @This();
+
+    name: []const u8,
+    params: std.ArrayList(*Expression),
+
+    pub fn init(allocator: Allocator, name: []const u8) !*Self {
+        const expr = try allocator.create(Self);
+        expr.* = Self{
+            .name = name,
+            .params = std.ArrayList(*Expression).init(allocator),
+        };
+        return expr;
+    }
+    pub fn deinit(self: *Self, allocator: Allocator) void {
+        for (self.params.items) |param| {
+            param.deinit(allocator);
+        }
+        self.params.deinit();
+        allocator.destroy(self);
+    }
+    pub fn render(self: Self, buffer: *std.ArrayList(u8)) Error!void {
+        const writer = buffer.writer();
+        try writer.print("(call {s} ", .{self.name});
+        try writer.writeAll("(params");
+        for (self.params.items) |param| {
+            try writer.writeAll(" ");
+            try param.render(buffer);
+        }
+        try writer.writeAll(")");
         try writer.writeAll(")");
     }
 };

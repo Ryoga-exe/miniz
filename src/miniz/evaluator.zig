@@ -29,22 +29,47 @@ pub const Env = struct {
         };
     }
     pub fn deinit(self: *Self) void {
+        var it = self.map.keyIterator();
+        while (it.next()) |key| {
+            self.allocator.free(key.*);
+        }
+        var funcs = self.function_map.iterator();
+        while (funcs.next()) |entry| {
+            self.allocator.free(entry.key_ptr.*);
+            entry.value_ptr.*.deinit(self.allocator);
+        }
         self.map.deinit();
+        self.function_map.deinit();
     }
     pub fn set(self: *Self, identifier: []const u8, expression: i64) !void {
-        try self.map.put(identifier, expression);
+        try self.map.put(try self.allocator.dupe(u8, identifier), expression);
     }
     pub fn setFunc(self: *Self, name: []const u8, statement: *ast.FunctionStatement) !void {
-        try self.function_map.put(name, statement);
+        const stmt = try ast.FunctionStatement.init(self.allocator, name);
+        for (statement.params.items) |param| {
+            try stmt.addParam(self.allocator, param);
+        }
+        const blocks = try statement.block.statements.toOwnedSlice();
+        for (blocks) |block| {
+            try stmt.block.statements.append(block);
+        }
+        try self.function_map.put(try self.allocator.dupe(u8, name), stmt);
     }
-    pub fn remove(self: *Self, identifier: []const u8) !void {
-        self.map.remove(identifier);
+    pub fn remove(self: *Self, identifier: []const u8) bool {
+        return self.map.remove(identifier);
     }
     pub fn get(self: *Self, identifier: []const u8) i64 {
         if (self.map.get(identifier)) |expr| {
             return expr;
         } else {
             unreachable; // {identifier} is not defined
+        }
+    }
+    pub fn getFunc(self: *Self, name: []const u8) *ast.FunctionStatement {
+        if (self.function_map.get(name)) |stmt| {
+            return stmt;
+        } else {
+            unreachable; // {name} is not defined or a function
         }
     }
 };
@@ -127,6 +152,25 @@ fn evalExpression(allocator: std.mem.Allocator, expression: *Expression, env: *E
                 return 0;
             }
         },
+        .call_expression => |callexpr| {
+            const func = env.getFunc(callexpr.name);
+            if (func.params.items.len != callexpr.params.items.len) {
+                unreachable; // invailed parameters
+            }
+            for (func.params.items, callexpr.params.items) |arg, param| {
+                try env.set(arg, try evalExpression(allocator, param, env));
+            }
+            defer for (func.params.items) |arg| {
+                _ = env.remove(arg);
+            };
+
+            var ret: i64 = 0;
+            for (func.block.statements.items) |stmt| {
+                ret = try evalStatement(allocator, stmt, env);
+            }
+
+            return ret;
+        },
     }
     return 0;
 }
@@ -151,6 +195,8 @@ test "eval" {
         .{ .input = "foobar = 1 + 3 + 5", .expect = 9 },
         .{ .input = "foobar + mod", .expect = 998244362 },
         .{ .input = "if (foobar < mod) 5; else 10;", .expect = 5 },
+        .{ .input = "function add(x, y) { return x + y; }", .expect = 0 },
+        .{ .input = "add(5, 5)l;", .expect = 10 },
     };
 
     var env = Env.init(alloc);

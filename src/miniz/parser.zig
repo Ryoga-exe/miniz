@@ -86,7 +86,7 @@ pub const Parser = struct {
             if (self.currentToken.type != .identifier) {
                 unreachable;
             }
-            try stmt.function_statement.params.append(self.currentToken.literal);
+            try stmt.function_statement.addParam(self.allocator, self.currentToken.literal);
             self.nextToken();
             if (self.currentToken.type != .rparen) {
                 if (self.currentToken.type != .comma) {
@@ -154,9 +154,28 @@ pub const Parser = struct {
                 return result;
             },
             .identifier => {
-                const result = try Expression.createIdentifier(self.allocator, self.currentToken.literal);
-                self.nextToken();
-                return result;
+                if (self.peekToken.type == .lparen) {
+                    // function call
+                    const result = try Expression.createCallExpression(self.allocator, self.currentToken.literal);
+                    self.nextToken();
+                    self.nextToken();
+                    while (self.currentToken.type != .rparen) {
+                        const param = try self.parseExpr(0);
+                        try result.call_expression.params.append(param);
+                        if (self.currentToken.type != .rparen) {
+                            if (self.currentToken.type != .comma) {
+                                unreachable; // unexpected token
+                            }
+                            self.nextToken();
+                        }
+                    }
+                    self.nextToken();
+                    return result;
+                } else {
+                    const result = try Expression.createIdentifier(self.allocator, self.currentToken.literal);
+                    self.nextToken();
+                    return result;
+                }
             },
             else => {
                 unreachable; // expected literal or identifier
@@ -253,6 +272,7 @@ test "parseProgram" {
         .{ .input = "if (x + 1 < y + 4) 55;", .expect = "(expr (if (< (+ x 1) (+ y 4)) (expr 55)))" },
         .{ .input = "{ 1 + 2; }", .expect = "(block (expr (+ 1 2)))" },
         .{ .input = "function add(x, y) { return x + y; }", .expect = "(function add (params x y) (block (return (+ x y))))" },
+        .{ .input = "foobar(12, 1 + 2);", .expect = "(expr (call foobar (params 12 (+ 1 2))))" },
     };
     for (tests) |t| {
         const result = try ParseTesting(alloc, t.input);
